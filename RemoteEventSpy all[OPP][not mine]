@@ -1,0 +1,688 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+local NORMAL_SIZE = UDim2.new(0, 400, 0, 300)
+local ENLARGED_SIZE = UDim2.new(0, 600, 0, 400)
+local TITLE_BAR_HEIGHT = 30
+local TAB_BAR_HEIGHT = 30
+local isMinimized = false
+local isEnlarged = false
+local infiniteHealthEnabled = false
+local infiniteDamageEnabled = false
+local remoteEventsCache = {}
+
+local function addRemoteEvent(obj)
+	remoteEventsCache[obj:GetFullName()] = obj
+end
+
+local function removeRemoteEvent(obj)
+	remoteEventsCache[obj:GetFullName()] = nil
+end
+
+for _, obj in ipairs(game:GetDescendants()) do
+	if obj:IsA("RemoteEvent") then
+		addRemoteEvent(obj)
+	end
+end
+
+game.DescendantAdded:Connect(function(obj)
+	if obj:IsA("RemoteEvent") then
+		addRemoteEvent(obj)
+	end
+end)
+
+game.DescendantRemoving:Connect(function(obj)
+	if obj:IsA("RemoteEvent") then
+		removeRemoteEvent(obj)
+	end
+end)
+
+local function createMainFrame()
+	local frame = Instance.new("Frame")
+	frame.Name = "MainFrame"
+	frame.Size = NORMAL_SIZE
+	frame.Position = UDim2.new(0.5, -NORMAL_SIZE.X.Offset/2, 0.5, -NORMAL_SIZE.Y.Offset/2)
+	frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	frame.BorderSizePixel = 0
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = frame
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255, 0, 0)
+	stroke.Thickness = 3
+	stroke.Parent = frame
+	local startTime = tick()
+	RunService.Heartbeat:Connect(function()
+		local elapsed = tick() - startTime
+		local hue = (elapsed * 0.2) % 1
+		stroke.Color = Color3.fromHSV(hue, 1, 1)
+	end)
+	return frame
+end
+
+local function createHeader(parent)
+	local header = Instance.new("Frame")
+	header.Name = "Header"
+	header.Size = UDim2.new(1, 0, 0, TITLE_BAR_HEIGHT)
+	header.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+	header.BorderSizePixel = 0
+	header.Parent = parent
+	local headerCorner = Instance.new("UICorner")
+	headerCorner.CornerRadius = UDim.new(0, 8)
+	headerCorner.Parent = header
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "TitleLabel"
+	titleLabel.Size = UDim2.new(1, -130, 1, 0)
+	titleLabel.Position = UDim2.new(0, 10, 0, 0)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = "Auto Finder Remote Events"
+	titleLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+	titleLabel.TextSize = 18
+	titleLabel.Font = Enum.Font.Code
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Parent = header
+	local btnContainer = Instance.new("Frame")
+	btnContainer.Name = "ButtonContainer"
+	btnContainer.Size = UDim2.new(0, 120, 1, 0)
+	btnContainer.Position = UDim2.new(1, -120, 0, 0)
+	btnContainer.BackgroundTransparency = 1
+	btnContainer.Parent = header
+	local function createHeaderButton(name, text, textColor, bgColor, position)
+		local btn = Instance.new("TextButton")
+		btn.Name = name
+		btn.Size = UDim2.new(0, 40, 1, 0)
+		btn.Position = position
+		btn.BackgroundColor3 = bgColor
+		btn.BorderSizePixel = 0
+		btn.Text = text
+		btn.TextColor3 = textColor
+		btn.Font = Enum.Font.Code
+		btn.TextSize = 18
+		local btnCorner = Instance.new("UICorner")
+		btnCorner.CornerRadius = UDim.new(0, 4)
+		btnCorner.Parent = btn
+		btn.Parent = btnContainer
+		return btn
+	end
+	local minimizeButton = createHeaderButton("MinimizeButton", "–", Color3.fromRGB(255, 255, 255), Color3.fromRGB(45, 45, 45), UDim2.new(0, 0, 0, 0))
+	local enlargeButton = createHeaderButton("EnlargeButton", "+", Color3.fromRGB(255, 255, 255), Color3.fromRGB(45, 45, 45), UDim2.new(0, 40, 0, 0))
+	local closeButton = createHeaderButton("CloseButton", "X", Color3.fromRGB(255, 80, 80), Color3.fromRGB(45, 45, 45), UDim2.new(0, 80, 0, 0))
+	return {header = header, minimizeButton = minimizeButton, enlargeButton = enlargeButton, closeButton = closeButton}
+end
+
+local function createTabBar(parent)
+	local tabBar = Instance.new("Frame")
+	tabBar.Name = "TabBar"
+	tabBar.Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT)
+	tabBar.Position = UDim2.new(0, 0, 0, TITLE_BAR_HEIGHT)
+	tabBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	tabBar.BorderSizePixel = 0
+	tabBar.Parent = parent
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = tabBar
+	local function createTabButton(tabName)
+		local btn = Instance.new("TextButton")
+		btn.Name = tabName .. "TabButton"
+		btn.Size = UDim2.new(0, 100, 1, 0)
+		btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+		btn.BorderSizePixel = 0
+		btn.Text = tabName
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.Font = Enum.Font.Code
+		btn.TextSize = 16
+		btn.Parent = tabBar
+		return btn
+	end
+	local remoteEventsTabButton = createTabButton("Remote Events")
+	local foldersTabButton = createTabButton("Folders")
+	local settingsTabButton = createTabButton("Settings")
+	return {tabBar = tabBar, remoteEventsTabButton = remoteEventsTabButton, foldersTabButton = foldersTabButton, settingsTabButton = settingsTabButton}
+end
+
+local function createContentFrames(parent)
+	local contentFrame = Instance.new("Frame")
+	contentFrame.Name = "ContentFrame"
+	contentFrame.Size = UDim2.new(1, 0, 1, -TITLE_BAR_HEIGHT - TAB_BAR_HEIGHT)
+	contentFrame.Position = UDim2.new(0, 0, 0, TITLE_BAR_HEIGHT + TAB_BAR_HEIGHT)
+	contentFrame.BackgroundTransparency = 1
+	contentFrame.Parent = parent
+	local remoteEventsFrame = Instance.new("Frame")
+	remoteEventsFrame.Name = "RemoteEventsFrame"
+	remoteEventsFrame.Size = UDim2.new(1, 0, 1, 0)
+	remoteEventsFrame.BackgroundTransparency = 1
+	remoteEventsFrame.Parent = contentFrame
+	local foldersFrame = Instance.new("Frame")
+	foldersFrame.Name = "FoldersFrame"
+	foldersFrame.Size = UDim2.new(1, 0, 1, 0)
+	foldersFrame.BackgroundTransparency = 1
+	foldersFrame.Visible = false
+	foldersFrame.Parent = contentFrame
+	local settingsFrame = Instance.new("Frame")
+	settingsFrame.Name = "SettingsFrame"
+	settingsFrame.Size = UDim2.new(1, 0, 1, 0)
+	settingsFrame.BackgroundTransparency = 1
+	settingsFrame.Visible = false
+	settingsFrame.Parent = contentFrame
+	return {contentFrame = contentFrame, remoteEventsFrame = remoteEventsFrame, foldersFrame = foldersFrame, settingsFrame = settingsFrame}
+end
+
+local function setupRemoteEventsTab(frame)
+	local searchBox = Instance.new("TextBox")
+	searchBox.Name = "SearchBox"
+	searchBox.Size = UDim2.new(1, -90, 0, 25)
+	searchBox.Position = UDim2.new(0, 10, 0, 10)
+	searchBox.PlaceholderText = "Search RemoteEvents..."
+	searchBox.TextColor3 = Color3.fromRGB(240, 240, 240)
+	searchBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	searchBox.TextSize = 14
+	searchBox.Font = Enum.Font.Code
+	searchBox.ClearTextOnFocus = false
+	local sbCorner = Instance.new("UICorner")
+	sbCorner.CornerRadius = UDim.new(0, 4)
+	sbCorner.Parent = searchBox
+	searchBox.Parent = frame
+	local copyAllButton = Instance.new("TextButton")
+	copyAllButton.Name = "CopyAllButton"
+	copyAllButton.Size = UDim2.new(0, 80, 0, 25)
+	copyAllButton.Position = UDim2.new(1, -90, 0, 10)
+	copyAllButton.Text = "Copy All"
+	copyAllButton.TextColor3 = Color3.fromRGB(0, 255, 255)
+	copyAllButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	copyAllButton.TextSize = 14
+	copyAllButton.Font = Enum.Font.Code
+	local cabCorner = Instance.new("UICorner")
+	cabCorner.CornerRadius = UDim.new(0, 4)
+	cabCorner.Parent = copyAllButton
+	copyAllButton.Parent = frame
+	local scrollFrame = Instance.new("ScrollingFrame")
+	scrollFrame.Name = "EventsScrollFrame"
+	scrollFrame.Size = UDim2.new(1, -20, 1, -50)
+	scrollFrame.Position = UDim2.new(0, 10, 0, 45)
+	scrollFrame.BackgroundTransparency = 0.3
+	scrollFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	scrollFrame.BorderSizePixel = 0
+	scrollFrame.Parent = frame
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	listLayout.Parent = scrollFrame
+	local function createEventFrame(eventName, index)
+		local eventFrame = Instance.new("Frame")
+		eventFrame.Name = "EventFrame"
+		eventFrame.Size = UDim2.new(1, 0, 0, 25)
+		eventFrame.BackgroundTransparency = 0.5
+		eventFrame.BackgroundColor3 = (index % 2 == 0) and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(20, 20, 20)
+		local efCorner = Instance.new("UICorner")
+		efCorner.CornerRadius = UDim.new(0, 4)
+		efCorner.Parent = eventFrame
+		local eventLabel = Instance.new("TextLabel")
+		eventLabel.Name = "EventLabel"
+		eventLabel.Size = UDim2.new(0.75, 0, 1, 0)
+		eventLabel.Position = UDim2.new(0, 5, 0, 0)
+		eventLabel.Text = eventName
+		eventLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+		eventLabel.TextSize = 14
+		eventLabel.Font = Enum.Font.Code
+		eventLabel.TextXAlignment = Enum.TextXAlignment.Left
+		eventLabel.BackgroundTransparency = 1
+		eventLabel.Parent = eventFrame
+		local copyButton = Instance.new("TextButton")
+		copyButton.Name = "CopyButton"
+		copyButton.Size = UDim2.new(0.23, 0, 0.8, 0)
+		copyButton.Position = UDim2.new(0.77, -5, 0.1, 0)
+		copyButton.Text = "Copy"
+		copyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		copyButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		copyButton.TextSize = 14
+		copyButton.Font = Enum.Font.Code
+		copyButton.Parent = eventFrame
+		local cpCorner = Instance.new("UICorner")
+		cpCorner.CornerRadius = UDim.new(0, 4)
+		cpCorner.Parent = copyButton
+		copyButton.MouseButton1Click:Connect(function()
+			if setclipboard then
+				setclipboard(eventName)
+				StarterGui:SetCore("SendNotification", {Title = "Copied!", Text = "Copied: " .. eventName, Duration = 3})
+			else
+				StarterGui:SetCore("SendNotification", {Title = "Error", Text = "Clipboard function not supported.", Duration = 3})
+			end
+		end)
+		return eventFrame
+	end
+	local function findAllRemoteEvents()
+		local remoteEvents = {}
+		for name, obj in pairs(remoteEventsCache) do
+			table.insert(remoteEvents, name)
+		end
+		return remoteEvents
+	end
+	local function displayRemoteEvents(searchTerm)
+		local allEvents = findAllRemoteEvents()
+		local filteredEvents = {}
+		for _, eventName in ipairs(allEvents) do
+			if searchTerm == "" or string.find(string.lower(eventName), string.lower(searchTerm)) then
+				table.insert(filteredEvents, eventName)
+			end
+		end
+		local existingFrames = {}
+		for _, child in ipairs(scrollFrame:GetChildren()) do
+			if child:IsA("Frame") and child.Name == "EventFrame" then
+				table.insert(existingFrames, child)
+			end
+		end
+		for index, eventName in ipairs(filteredEvents) do
+			local eventFrame
+			if existingFrames[index] then
+				eventFrame = existingFrames[index]
+				local label = eventFrame:FindFirstChild("EventLabel")
+				if label then
+					label.Text = eventName
+				end
+				local copyButton = eventFrame:FindFirstChild("CopyButton")
+				if copyButton then
+					for _, conn in ipairs(copyButton:GetPropertyChangedSignals("Text")) do
+						conn:Disconnect()
+					end
+					copyButton.MouseButton1Click:Connect(function()
+						if setclipboard then
+							setclipboard(eventName)
+							StarterGui:SetCore("SendNotification", {Title = "Copied!", Text = "Copied: " .. eventName, Duration = 3})
+						else
+							StarterGui:SetCore("SendNotification", {Title = "Error", Text = "Clipboard function not supported.", Duration = 3})
+						end
+					end)
+				end
+				eventFrame.BackgroundColor3 = (index % 2 == 0) and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(20, 20, 20)
+			else
+				eventFrame = createEventFrame(eventName, index)
+				eventFrame.Parent = scrollFrame
+			end
+		end
+		for i = #filteredEvents + 1, #existingFrames do
+			existingFrames[i]:Destroy()
+		end
+		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #filteredEvents * 25)
+	end
+	searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		displayRemoteEvents(searchBox.Text)
+	end)
+	copyAllButton.MouseButton1Click:Connect(function()
+		local allEvents = findAllRemoteEvents()
+		if #allEvents == 0 then
+			StarterGui:SetCore("SendNotification", {Title = "No Events", Text = "No RemoteEvents found.", Duration = 3})
+			return
+		end
+		local copiedText = table.concat(allEvents, "\n")
+		if setclipboard then
+			setclipboard(copiedText)
+			StarterGui:SetCore("SendNotification", {Title = "Copied!", Text = "All RemoteEvents copied to clipboard.", Duration = 3})
+		else
+			StarterGui:SetCore("SendNotification", {Title = "Error", Text = "Clipboard function not supported.", Duration = 3})
+		end
+	end)
+	displayRemoteEvents("")
+end
+
+local function findAllFolderContents()
+	local folderContents = {}
+	for _, obj in ipairs(game:GetDescendants()) do
+		local parent = obj.Parent
+		while parent do
+			if parent:IsA("Folder") then
+				table.insert(folderContents, obj:GetFullName())
+				break
+			end
+			parent = parent.Parent
+		end
+	end
+	return folderContents
+end
+
+local function setupFoldersTab(frame)
+	local searchBox = Instance.new("TextBox")
+	searchBox.Name = "SearchBox"
+	searchBox.Size = UDim2.new(1, -90, 0, 25)
+	searchBox.Position = UDim2.new(0, 10, 0, 10)
+	searchBox.PlaceholderText = "Search Folders..."
+	searchBox.TextColor3 = Color3.fromRGB(240, 240, 240)
+	searchBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	searchBox.TextSize = 14
+	searchBox.Font = Enum.Font.Code
+	searchBox.ClearTextOnFocus = false
+	local sbCorner = Instance.new("UICorner")
+	sbCorner.CornerRadius = UDim.new(0, 4)
+	sbCorner.Parent = searchBox
+	searchBox.Parent = frame
+	local copyAllButton = Instance.new("TextButton")
+	copyAllButton.Name = "CopyAllButton"
+	copyAllButton.Size = UDim2.new(0, 80, 0, 25)
+	copyAllButton.Position = UDim2.new(1, -90, 0, 10)
+	copyAllButton.Text = "Copy All"
+	copyAllButton.TextColor3 = Color3.fromRGB(0, 255, 255)
+	copyAllButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	copyAllButton.TextSize = 14
+	copyAllButton.Font = Enum.Font.Code
+	local cabCorner = Instance.new("UICorner")
+	cabCorner.CornerRadius = UDim.new(0, 4)
+	cabCorner.Parent = copyAllButton
+	copyAllButton.Parent = frame
+	local scrollFrame = Instance.new("ScrollingFrame")
+	scrollFrame.Name = "FoldersScrollFrame"
+	scrollFrame.Size = UDim2.new(1, -20, 1, -50)
+	scrollFrame.Position = UDim2.new(0, 10, 0, 45)
+	scrollFrame.BackgroundTransparency = 0.3
+	scrollFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	scrollFrame.BorderSizePixel = 0
+	scrollFrame.Parent = frame
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	listLayout.Parent = scrollFrame
+	local function createFolderFrame(itemName, index)
+		local folderFrame = Instance.new("Frame")
+		folderFrame.Name = "FolderFrame"
+		folderFrame.Size = UDim2.new(1, 0, 0, 25)
+		folderFrame.BackgroundTransparency = 0.5
+		folderFrame.BackgroundColor3 = (index % 2 == 0) and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(20, 20, 20)
+		local ffCorner = Instance.new("UICorner")
+		ffCorner.CornerRadius = UDim.new(0, 4)
+		ffCorner.Parent = folderFrame
+		local folderLabel = Instance.new("TextLabel")
+		folderLabel.Name = "FolderLabel"
+		folderLabel.Size = UDim2.new(0.75, 0, 1, 0)
+		folderLabel.Position = UDim2.new(0, 5, 0, 0)
+		folderLabel.Text = itemName
+		folderLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+		folderLabel.TextSize = 14
+		folderLabel.Font = Enum.Font.Code
+		folderLabel.TextXAlignment = Enum.TextXAlignment.Left
+		folderLabel.BackgroundTransparency = 1
+		folderLabel.Parent = folderFrame
+		local copyButton = Instance.new("TextButton")
+		copyButton.Name = "CopyButton"
+		copyButton.Size = UDim2.new(0.23, 0, 0.8, 0)
+		copyButton.Position = UDim2.new(0.77, -5, 0.1, 0)
+		copyButton.Text = "Copy"
+		copyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		copyButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		copyButton.TextSize = 14
+		copyButton.Font = Enum.Font.Code
+		copyButton.Parent = folderFrame
+		local cpCorner = Instance.new("UICorner")
+		cpCorner.CornerRadius = UDim.new(0, 4)
+		cpCorner.Parent = copyButton
+		copyButton.MouseButton1Click:Connect(function()
+			if setclipboard then
+				setclipboard(itemName)
+				StarterGui:SetCore("SendNotification", {Title = "Copied!", Text = "Copied: " .. itemName, Duration = 3})
+			else
+				StarterGui:SetCore("SendNotification", {Title = "Error", Text = "Clipboard function not supported.", Duration = 3})
+			end
+		end)
+		return folderFrame
+	end
+	local function displayFolderContents(searchTerm)
+		local allFolders = findAllFolderContents()
+		local filteredFolders = {}
+		for _, itemName in ipairs(allFolders) do
+			if searchTerm == "" or string.find(string.lower(itemName), string.lower(searchTerm)) then
+				table.insert(filteredFolders, itemName)
+			end
+		end
+		local existingFrames = {}
+		for _, child in ipairs(scrollFrame:GetChildren()) do
+			if child:IsA("Frame") and child.Name == "FolderFrame" then
+				table.insert(existingFrames, child)
+			end
+		end
+		for index, itemName in ipairs(filteredFolders) do
+			local folderFrame
+			if existingFrames[index] then
+				folderFrame = existingFrames[index]
+				local label = folderFrame:FindFirstChild("FolderLabel")
+				if label then
+					label.Text = itemName
+				end
+				folderFrame.BackgroundColor3 = (index % 2 == 0) and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(20, 20, 20)
+			else
+				folderFrame = createFolderFrame(itemName, index)
+				folderFrame.Parent = scrollFrame
+			end
+		end
+		for i = #filteredFolders + 1, #existingFrames do
+			existingFrames[i]:Destroy()
+		end
+		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #filteredFolders * 25)
+	end
+	searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		displayFolderContents(searchBox.Text)
+	end)
+	copyAllButton.MouseButton1Click:Connect(function()
+		local allFolders = findAllFolderContents()
+		if #allFolders == 0 then
+			StarterGui:SetCore("SendNotification", {Title = "No Items", Text = "No folder contents found.", Duration = 3})
+			return
+		end
+		local copiedText = table.concat(allFolders, "\n")
+		if setclipboard then
+			setclipboard(copiedText)
+			StarterGui:SetCore("SendNotification", {Title = "Copied!", Text = "All folder contents copied to clipboard.", Duration = 3})
+		else
+			StarterGui:SetCore("SendNotification", {Title = "Error", Text = "Clipboard function not supported.", Duration = 3})
+		end
+	end)
+	displayFolderContents("")
+end
+
+local function setupSettingsTab(frame)
+	local currentY = 10
+	local function createSettingLabel(text, posY)
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(0, 120, 0, 25)
+		label.Position = UDim2.new(0, 10, 0, posY)
+		label.BackgroundTransparency = 1
+		label.Text = text
+		label.TextColor3 = Color3.fromRGB(240, 240, 240)
+		label.TextSize = 16
+		label.Font = Enum.Font.Code
+		label.Parent = frame
+		return label
+	end
+	local function createSettingTextBox(posY, placeholder)
+		local tb = Instance.new("TextBox")
+		tb.Size = UDim2.new(0, 100, 0, 25)
+		tb.Position = UDim2.new(0, 140, 0, posY)
+		tb.PlaceholderText = placeholder
+		tb.TextColor3 = Color3.fromRGB(240, 240, 240)
+		tb.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		tb.TextSize = 14
+		tb.Font = Enum.Font.Code
+		local tbCorner = Instance.new("UICorner")
+		tbCorner.CornerRadius = UDim.new(0, 4)
+		tbCorner.Parent = tb
+		tb.Parent = frame
+		return tb
+	end
+	local function createSettingButton(text, posY)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0, 100, 0, 25)
+		btn.Position = UDim2.new(0, 250, 0, posY)
+		btn.Text = text
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+		btn.TextSize = 16
+		btn.Font = Enum.Font.Code
+		local btnCorner = Instance.new("UICorner")
+		btnCorner.CornerRadius = UDim.new(0, 4)
+		btnCorner.Parent = btn
+		btn.Parent = frame
+		return btn
+	end
+	createSettingLabel("WalkSpeed:", currentY)
+	local walkSpeedTB = createSettingTextBox(currentY, "e.g., 16")
+	local applyWalkSpeedBtn = createSettingButton("Apply", currentY)
+	applyWalkSpeedBtn.MouseButton1Click:Connect(function()
+		local speed = tonumber(walkSpeedTB.Text)
+		if not speed then
+			StarterGui:SetCore("SendNotification", {Title = "Invalid Input", Text = "Please enter a valid numeric walk speed.", Duration = 3})
+			return
+		end
+		local character = localPlayer.Character
+		if character then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				humanoid.WalkSpeed = speed
+				StarterGui:SetCore("SendNotification", {Title = "Walk Speed Applied", Text = "Walk Speed set to " .. speed, Duration = 3})
+			end
+		end
+	end)
+	currentY = currentY + 40
+	createSettingLabel("JumpPower:", currentY)
+	local jumpPowerTB = createSettingTextBox(currentY, "e.g., 50")
+	local applyJumpPowerBtn = createSettingButton("Apply", currentY)
+	applyJumpPowerBtn.MouseButton1Click:Connect(function()
+		local power = tonumber(jumpPowerTB.Text)
+		if not power then
+			StarterGui:SetCore("SendNotification", {Title = "Invalid Input", Text = "Please enter a valid numeric jump power.", Duration = 3})
+			return
+		end
+		local character = localPlayer.Character
+		if character then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				humanoid.JumpPower = power
+				StarterGui:SetCore("SendNotification", {Title = "Jump Power Applied", Text = "Jump Power set to " .. power, Duration = 3})
+			end
+		end
+	end)
+	currentY = currentY + 40
+	createSettingLabel("God Mode:", currentY)
+	local godModeBtn = createSettingButton("", currentY)
+	godModeBtn.MouseButton1Click:Connect(function()
+		infiniteHealthEnabled = not infiniteHealthEnabled
+		godModeBtn.Text = infiniteHealthEnabled and "ON" or "OFF"
+	end)
+	currentY = currentY + 40
+	createSettingLabel("Infinity DMG:", currentY)
+	local infiniteDmgBtn = createSettingButton("", currentY)
+	infiniteDmgBtn.MouseButton1Click:Connect(function()
+		infiniteDamageEnabled = not infiniteDamageEnabled
+		infiniteDmgBtn.Text = infiniteDamageEnabled and "ON" or "OFF"
+	end)
+	currentY = currentY + 40
+end
+
+local function setupTabSwitching(tabElements, contentElements)
+	local function showTab(tabName)
+		if tabName == "Remote Events" then
+			contentElements.remoteEventsFrame.Visible = true
+			contentElements.foldersFrame.Visible = false
+			contentElements.settingsFrame.Visible = false
+			tabElements.remoteEventsTabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			tabElements.foldersTabButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			tabElements.settingsTabButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+		elseif tabName == "Folders" then
+			contentElements.remoteEventsFrame.Visible = false
+			contentElements.foldersFrame.Visible = true
+			contentElements.settingsFrame.Visible = false
+			tabElements.remoteEventsTabButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			tabElements.foldersTabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			tabElements.settingsTabButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+		elseif tabName == "Settings" then
+			contentElements.remoteEventsFrame.Visible = false
+			contentElements.foldersFrame.Visible = false
+			contentElements.settingsFrame.Visible = true
+			tabElements.remoteEventsTabButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			tabElements.foldersTabButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			tabElements.settingsTabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		end
+	end
+	tabElements.remoteEventsTabButton.MouseButton1Click:Connect(function()
+		showTab("Remote Events")
+	end)
+	tabElements.foldersTabButton.MouseButton1Click:Connect(function()
+		showTab("Folders")
+	end)
+	tabElements.settingsTabButton.MouseButton1Click:Connect(function()
+		showTab("Settings")
+	end)
+end
+
+local function setupWindowControls(headerElements, mainFrame, contentElements, tabBar)
+	headerElements.minimizeButton.MouseButton1Click:Connect(function()
+		if not isMinimized then
+			TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(mainFrame.Size.X.Scale, mainFrame.Size.X.Offset, 0, TITLE_BAR_HEIGHT)}):Play()
+			contentElements.contentFrame.Visible = false
+			tabBar.Visible = false
+			isMinimized = true
+		else
+			local targetSize = isEnlarged and ENLARGED_SIZE or NORMAL_SIZE
+			TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+			contentElements.contentFrame.Visible = true
+			tabBar.Visible = true
+			isMinimized = false
+		end
+	end)
+	headerElements.enlargeButton.MouseButton1Click:Connect(function()
+		if isMinimized then
+			contentElements.contentFrame.Visible = true
+			tabBar.Visible = true
+			isMinimized = false
+		end
+		if not isEnlarged then
+			TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = ENLARGED_SIZE}):Play()
+			isEnlarged = true
+		else
+			TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = NORMAL_SIZE}):Play()
+			isEnlarged = false
+		end
+	end)
+	headerElements.closeButton.MouseButton1Click:Connect(function()
+		TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+		task.delay(0.3, function()
+			mainFrame.Parent:Destroy()
+		end)
+	end)
+end
+
+RunService.Heartbeat:Connect(function()
+	if infiniteHealthEnabled then
+		local character = localPlayer.Character
+		if character then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid and humanoid.Health < humanoid.MaxHealth then
+				humanoid.Health = humanoid.MaxHealth
+			end
+		end
+	end
+	if infiniteDamageEnabled then
+		local stats = localPlayer:FindFirstChild("Stats")
+		if stats then
+			local damage = stats:FindFirstChild("Damage")
+			if damage and damage:IsA("NumberValue") then
+				damage.Value = 99999999
+			end
+		end
+	end
+end)
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RemoteEventsFinder"
+screenGui.Parent = playerGui
+local mainFrame = createMainFrame()
+mainFrame.Parent = screenGui
+mainFrame:TweenSize(NORMAL_SIZE, Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.5, true)
+local headerElements = createHeader(mainFrame)
+local tabElements = createTabBar(mainFrame)
+local contentElements = createContentFrames(mainFrame)
+setupRemoteEventsTab(contentElements.remoteEventsFrame)
+setupFoldersTab(contentElements.foldersFrame)
+setupSettingsTab(contentElements.settingsFrame)
+setupTabSwitching(tabElements, contentElements)
+setupWindowControls(headerElements, mainFrame, contentElements, tabElements.tabBar)
