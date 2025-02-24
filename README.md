@@ -13,3 +13,4 @@ only randow scripts
 
 
 ## Credits go to the official owners
+''' lua
