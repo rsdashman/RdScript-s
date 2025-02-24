@@ -4,10 +4,10 @@ only randow scripts
 
 + goodscripts
 + not a rat
-
---OP
---Serverside scripts and more
++OP
++Serverside scripts and more
 
 # most picked up from scriptblox.com and other sites
 
 
+##Credits go to the official owners
