@@ -10,4 +10,4 @@ only randow scripts
 # most picked up from scriptblox.com and other sites
 
 
-##Credits go to the official owners
+## Credits go to the official owners
