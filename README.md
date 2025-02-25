@@ -5,9 +5,12 @@ only randow scripts
 # im posting here some good scripts!
 
 + goodscripts
++ OP
 + not a rat
-+OP
-+Serverside scripts and more
++ Serverside scripts!
+  
+
+
 
 # most picked up from scriptblox.com and other sites
 
