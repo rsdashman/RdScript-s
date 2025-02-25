@@ -1,0 +1,61 @@
+local ScreenGui = Instance.new("ScreenGui")
+local DraggableFrame = Instance.new("Frame")
+local WalkSpeedSlider = Instance.new("TextBox")
+local WalkSpeedLabel = Instance.new("TextLabel")
+local ResetButton = Instance.new("TextButton")
+local IncreaseButton = Instance.new("TextButton")
+
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+DraggableFrame.Parent = ScreenGui
+DraggableFrame.Size = UDim2.new(0, 200, 0, 200)
+DraggableFrame.Position = UDim2.new(0.5, -100, 0.5, -100)
+DraggableFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+
+WalkSpeedLabel.Parent = DraggableFrame
+WalkSpeedLabel.Size = UDim2.new(1, 0, 0, 30)
+WalkSpeedLabel.Text = "WalkSpeed:"
+WalkSpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+WalkSpeedLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+
+WalkSpeedSlider.Parent = DraggableFrame
+WalkSpeedSlider.Size = UDim2.new(1, 0, 0, 30)
+WalkSpeedSlider.Position = UDim2.new(0, 0, 0, 40)
+WalkSpeedSlider.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+WalkSpeedSlider.Text = "16"
+
+ResetButton.Parent = DraggableFrame
+ResetButton.Size = UDim2.new(1, 0, 0, 30)
+ResetButton.Position = UDim2.new(0, 0, 0, 80)
+ResetButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+ResetButton.Text = "Reset WalkSpeed"
+
+IncreaseButton.Parent = DraggableFrame
+IncreaseButton.Size = UDim2.new(1, 0, 0, 30)
+IncreaseButton.Position = UDim2.new(0, 0, 0, 120)
+IncreaseButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+IncreaseButton.Text = "Increase +100"
+
+DraggableFrame.Active = true
+DraggableFrame.Draggable = true
+
+WalkSpeedSlider.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local newSpeed = tonumber(WalkSpeedSlider.Text)
+        if newSpeed then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = newSpeed
+        end
+    end
+end)
+
+ResetButton.MouseButton1Click:Connect(function()
+    WalkSpeedSlider.Text = "16"
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+end)
+
+IncreaseButton.MouseButton1Click:Connect(function()
+    WalkSpeedSlider.Text = "100"
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 100
+end)
+
+game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = tonumber(WalkSpeedSlider.Text)
