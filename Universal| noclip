@@ -1,0 +1,67 @@
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local noclip = false
+local starterGui = game:GetService("StarterGui")
+
+local function toggleNoclip()
+	noclip = not noclip
+	if noclip then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+		starterGui:SetCore("SendNotification", {
+			Title = "Noclip Activated";
+			Text = "You can pass through objects.";
+			Duration = 2;
+		})
+	else
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				if part.Name == "Head" or part.Name == "Torso" or part.Name == "UpperTorso" or part.Name == "LowerTorso" then
+					part.CanCollide = true
+				else
+					part.CanCollide = false
+				end
+			end
+		end
+		starterGui:SetCore("SendNotification", {
+			Title = "Clip Activated";
+			Text = "You will only collide with the head and torso.";
+			Duration = 2;
+		})
+	end
+end
+
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+	if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.N then
+		toggleNoclip()
+	end
+end)
+
+humanoid.Died:Connect(function()
+	noclip = false
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CanCollide = true
+		end
+	end
+end)
+
+player.CharacterAdded:Connect(function(newCharacter)
+	character = newCharacter
+	humanoid = character:WaitForChild("Humanoid")
+end)
+
+game:GetService("RunService").RenderStepped:Connect(function()
+	if noclip then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
