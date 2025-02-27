@@ -1,0 +1,24 @@
+local player = game.Players.LocalPlayer
+local tool = Instance.new("Tool")
+tool.Name = "EnergeticX"
+tool.RequiresHandle = false
+
+tool.Activated:Connect(function()
+    spinning = true
+    player.Character.Humanoid.WalkSpeed = 250
+end)
+
+tool.Deactivated:Connect(function()
+    spinning = false
+    player.Character.Humanoid.WalkSpeed = 16
+end)
+
+local function onJumpRequest()
+    if spinning and player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end
+
+game:GetService("UserInputService").JumpRequest:Connect(onJumpRequest)
+
+tool.Parent = player.Backpack
