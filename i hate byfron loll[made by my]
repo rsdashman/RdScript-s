@@ -1,0 +1,106 @@
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "by i hate byfron"
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0.4, 0, 0.6, 0)
+mainFrame.Position = UDim2.new(0.3, 0, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.BackgroundTransparency = 0.5
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local function createRoundedCorners(frame)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 20)
+    corner.Parent = frame
+end
+
+createRoundedCorners(mainFrame)
+
+local neonEffect = Instance.new("UIStroke")
+neonEffect.Parent = mainFrame
+neonEffect.Color = Color3.fromRGB(0, 255, 255)
+neonEffect.Thickness = 4
+neonEffect.Transparency = 0.5
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0.1, 0)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Text = "i hate byfron(by nameless)"
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 24
+titleLabel.TextWrapped = true
+titleLabel.TextStrokeTransparency = 0.8
+titleLabel.Parent = mainFrame
+
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+mainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+local function createButton(index, loadstringCode, buttonName)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.8, 0, 0.12, 0)
+    local verticalSpacing = 0.12
+    button.Position = UDim2.new(0.1, 0, (index - 1) * (button.Size.Y.Offset + verticalSpacing) + 0.12, 0)
+    button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Text = buttonName
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 18
+    button.TextWrapped = true
+    button.Parent = mainFrame
+
+    button.MouseButton1Click:Connect(function()
+        loadstring(loadstringCode)()
+    end)
+    
+    createRoundedCorners(button)
+end
+
+local loadstrings = {
+    "loadstring(game:HttpGet('https://raw.githubusercontent.com/rsdashman/RdScript-s/refs/heads/main/YEET%20GUI'))()",
+    "loadstring(game:HttpGet('https://pastebin.com/raw/DDcCTwy6'))()",
+    "loadstring(game:HttpGet('https://raw.githubusercontent.com/JSFKGBASDJKHIOAFHDGHIUODSGBJKLFGDKSB/fe/refs/heads/main/FEHUGG'))()",
+    "loadstring(game:HttpGet('https://raw.githubusercontent.com/rsdashman/RdScript-s/refs/heads/main/FE%20Freak'))()",
+    "loadstring(game:HttpGet('https://pastebin.com/raw/aPSHMV6K'))()",
+    "loadstring(game:HttpGet('https://pastebin.com/raw/1ePMTt9n'))()",
+    "loadstring(game:HttpGet('https://rawscripts.net/raw/Universal-Script-Super-ring-parts-V6-Open-source-No-chat-26899'))()",
+}
+
+local buttonNames = {
+    "FE YEET OPP ",
+    "FE JERKOFF & BANG",
+    "FE HUG",
+    "FE FREAK",
+    "FE BANG R6",
+    "FE BANG R15",
+    "SUPER RING"
+}
+
+for i, code in ipairs(loadstrings) do
+    createButton(i, code, buttonNames[i])
+end
