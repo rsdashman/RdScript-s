@@ -1,0 +1,147 @@
+local lp = game:FindService("Players").LocalPlayer
+
+local isYeeting = false
+local yeetThrust = nil
+
+local function gplr(String)
+	local Found = {}
+	local strl = String:lower()
+
+	for i,v in pairs(game:FindService("Players"):GetPlayers()) do
+		if v.Name:lower():sub(1, #String) == String:lower() or v.DisplayName:lower():sub(1, #String) == String:lower() then
+			table.insert(Found,v)
+		end
+	end
+
+	return Found
+end
+
+local function notif(str,dur)
+	game:FindService("StarterGui"):SetCore("SendNotification", {
+		Title = "yeet gui",
+		Text = str,
+		Icon = "rbxassetid://2005276185",
+		Duration = dur or 3
+	})
+end
+
+local h = Instance.new("ScreenGui")
+local Main = Instance.new("ImageLabel")
+local Top = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local TextBox = Instance.new("TextBox")
+local TextButton = Instance.new("TextButton")
+local StopButton = Instance.new("TextButton")
+
+h.Name = "h"
+h.Parent = game:GetService("CoreGui")
+h.ResetOnSpawn = false
+
+Main.Name = "Main"
+Main.Parent = h
+Main.Active = true
+Main.Draggable = true
+Main.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+Main.BorderSizePixel = 0
+Main.Position = UDim2.new(0.174545452, 0, 0.459574461, 0)
+Main.Size = UDim2.new(0, 454, 0, 250)
+
+Main.Image = "rbxassetid://2005276185"
+
+Top.Name = "Top"
+Top.Parent = Main
+Top.BackgroundColor3 = Color3.fromRGB(57, 57, 57)
+Top.BorderSizePixel = 0
+Top.Size = UDim2.new(0, 454, 0, 44)
+
+Title.Name = "Title"
+Title.Parent = Top
+Title.BackgroundColor3 = Color3.fromRGB(49, 49, 49)
+Title.BorderSizePixel = 0
+Title.Position = UDim2.new(0, 0, 0.295454562, 0)
+Title.Size = UDim2.new(0, 454, 0, 30)
+Title.Font = Enum.Font.SourceSans
+Title.Text = "FE Yeet Gui (eDiTeD edition,,, credits to owner)"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextScaled = true
+Title.TextSize = 15.000
+Title.TextWrapped = true
+
+TextBox.Parent = Main
+TextBox.BackgroundColor3 = Color3.fromRGB(49, 49, 49)
+TextBox.BorderSizePixel = 0
+TextBox.Position = UDim2.new(0.0704845786, 0, 0.270642221, 0)
+TextBox.Size = UDim2.new(0, 388, 0, 62)
+TextBox.Font = Enum.Font.SourceSans
+TextBox.PlaceholderText = "Who do i destroy(nick name or realname)"
+TextBox.Text = ""
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.TextScaled = true
+TextBox.TextSize = 14.000
+TextBox.TextWrapped = true
+
+TextButton.Parent = Main
+TextButton.BackgroundColor3 = Color3.fromRGB(49, 49, 49)
+TextButton.BorderSizePixel = 0
+TextButton.Position = UDim2.new(0.10352423, 0, 0.596330225, 0)
+TextButton.Size = UDim2.new(0, 359, 0, 50)
+TextButton.Font = Enum.Font.SourceSans
+TextButton.Text = "Target?!'"
+TextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextButton.TextScaled = true
+TextButton.TextSize = 14.000
+TextButton.TextWrapped = true
+
+StopButton.Parent = Main
+StopButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+StopButton.BorderSizePixel = 0
+StopButton.Position = UDim2.new(0.10352423, 0, 0.746330225, 0)
+StopButton.Size = UDim2.new(0, 359, 0, 50)
+StopButton.Font = Enum.Font.SourceSans
+StopButton.Text = "Stop "
+StopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+StopButton.TextScaled = true
+StopButton.TextSize = 14.000
+StopButton.TextWrapped = true
+
+TextButton.MouseButton1Click:Connect(function()
+	local Target = gplr(TextBox.Text)
+	if Target[1] then
+		Target = Target[1]
+		isYeeting = true
+
+		yeetThrust = Instance.new('BodyThrust', lp.Character.HumanoidRootPart)
+		yeetThrust.Force = Vector3.new(9999,9999,9999)
+		yeetThrust.Name = "YeetForce"
+		repeat
+			lp.Character.HumanoidRootPart.CFrame = Target.Character.HumanoidRootPart.CFrame
+			yeetThrust.Location = Target.Character.HumanoidRootPart.Position
+			game:FindService("RunService").Heartbeat:wait()
+		until not Target.Character:FindFirstChild("Head") or not isYeeting
+	else
+		notif("Invalid player")
+	end
+end)
+
+StopButton.MouseButton1Click:Connect(function()
+	isYeeting = false
+	if yeetThrust then
+		yeetThrust:Destroy()
+		yeetThrust = nil
+	end
+	
+	if lp.Character:FindFirstChild("HumanoidRootPart") then
+		local humanoidRootPart = lp.Character.HumanoidRootPart
+		humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+		humanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
+		if lp.Character:FindFirstChild("Humanoid") then
+			lp.Character.Humanoid.PlatformStand = true
+			wait(0.1)
+			lp.Character.Humanoid.PlatformStand = false
+		end
+	end
+	
+	notif("Yeet stopped", 3)
+end)
+
+notif("EdiTed bY NaMeLesS! Created by scuba#0001", 5)
