@@ -1,0 +1,152 @@
+-- Fixed and Updated by CheckM8 (Aka Kevin)
+-- Keybinds: F = Punch + C = Slash
+local screen_gui = Instance.new("ScreenGui")
+local main_frame = Instance.new("Frame")
+local title_label = Instance.new("TextLabel")
+local punch_label = Instance.new("TextLabel")
+local slash_label = Instance.new("TextLabel")
+local punch_textbox = Instance.new("TextBox")
+local slash_textbox = Instance.new("TextBox")
+local players = game:GetService("Players")
+local run_service = game:GetService("RunService")
+local player = players.LocalPlayer
+local mouse = player:GetMouse()
+local fling = false
+local fling_running = false
+screen_gui.Parent = game:GetService("CoreGui")
+screen_gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+main_frame.Parent = screen_gui
+main_frame.Active = true
+main_frame.Draggable = true
+main_frame.BackgroundColor3 = Color3.new(0.5, 0.5, 0.5)
+main_frame.BackgroundTransparency = 0.4
+main_frame.BorderColor3 = Color3.new(0, 0, 0)
+main_frame.Position = UDim2.new(0.118, 0, 0.391, 0)
+main_frame.Size = UDim2.new(0, 174, 0, 150)
+title_label.Parent = main_frame
+title_label.BackgroundColor3 = Color3.new(0.7, 0.7, 0.7)
+title_label.BackgroundTransparency = 0.5
+title_label.Size = UDim2.new(0, 175, 0, 34)
+title_label.Font = Enum.Font.SourceSans
+title_label.Text = "Keybinds"
+title_label.TextColor3 = Color3.new(0, 0, 0)
+title_label.TextSize = 14
+punch_label.Parent = main_frame
+punch_label.BackgroundColor3 = Color3.new(0.7, 0.7, 0.7)
+punch_label.BackgroundTransparency = 0.4
+punch_label.Position = UDim2.new(0.073, 0, 0.306, 0)
+punch_label.Size = UDim2.new(0, 71, 0, 33)
+punch_label.Font = Enum.Font.SourceSans
+punch_label.Text = "punch"
+punch_label.TextColor3 = Color3.new(0, 0, 0)
+punch_label.TextSize = 14
+slash_label.Parent = main_frame
+slash_label.BackgroundColor3 = Color3.new(0.7, 0.7, 0.7)
+slash_label.BackgroundTransparency = 0.4
+slash_label.Position = UDim2.new(0.073, 0, 0.628, 0)
+slash_label.Size = UDim2.new(0, 70, 0, 33)
+slash_label.Font = Enum.Font.SourceSans
+slash_label.Text = "slash"
+slash_label.TextColor3 = Color3.new(0, 0, 0)
+slash_label.TextSize = 14
+punch_textbox.Parent = main_frame
+punch_textbox.BackgroundColor3 = Color3.new(0.7, 0.7, 0.7)
+punch_textbox.BackgroundTransparency = 0.4
+punch_textbox.Position = UDim2.new(0.482, 0, 0.306, 0)
+punch_textbox.Size = UDim2.new(0, 70, 0, 33)
+punch_textbox.Font = Enum.Font.SourceSans
+punch_textbox.Text = "f"
+punch_textbox.TextColor3 = Color3.new(0, 0, 0)
+punch_textbox.TextSize = 14
+slash_textbox.Parent = main_frame
+slash_textbox.BackgroundColor3 = Color3.new(0.7, 0.7, 0.7)
+slash_textbox.BackgroundTransparency = 0.4
+slash_textbox.Position = UDim2.new(0.476, 0, 0.626, 0)
+slash_textbox.Size = UDim2.new(0, 70, 0, 33)
+slash_textbox.Font = Enum.Font.SourceSans
+slash_textbox.Text = "c"
+slash_textbox.TextColor3 = Color3.new(0, 0, 0)
+slash_textbox.TextSize = 14
+local function nearest()
+	local nearest = nil
+	local min_dist = math.huge
+	local my_char = player.Character
+	if not my_char or not my_char:FindFirstChild("HumanoidRootPart") then return nil end
+	local my_pos = my_char.HumanoidRootPart.Position
+	local all_players = players:GetPlayers()
+	for i = 1, #all_players do
+		local p = all_players[i]
+		if p == player then continue end
+		if not p.Character then continue end
+		if not p.Character:FindFirstChild("HumanoidRootPart") then continue end
+		local dist = (p.Character.HumanoidRootPart.Position - my_pos).Magnitude
+		if dist < min_dist then
+			min_dist = dist
+			nearest = p
+		end
+	end
+	return nearest
+end
+ 
+local function do_fling()
+	if fling_running then return end
+	fling_running = true
+	local char, hrp, vel, movel = nil, nil, nil, 0.1
+	while fling do
+		run_service.Heartbeat:Wait()
+		char = player.Character
+		if not char then continue end
+		hrp = char:FindFirstChild("HumanoidRootPart")
+		if not hrp then continue end
+		local target = nearest()
+		local fling_dir = Vector3.new(0, 10000, 0)
+		if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+			local target_pos = target.Character.HumanoidRootPart.Position
+			local dir = (target_pos - hrp.Position).Unit
+			fling_dir = dir * 10000
+		end
+ 
+		vel = hrp.Velocity
+		hrp.Velocity = vel * 10000 + fling_dir
+		run_service.RenderStepped:Wait()
+		hrp.Velocity = vel
+		run_service.Stepped:Wait()
+		hrp.Velocity = vel + Vector3.new(0, movel, 0)
+		movel = -movel
+	end
+ 
+	fling_running = false
+end
+ 
+local function perform_animation(anim_id, speed)
+	if player.Character and player.Character:FindFirstChild("Humanoid") then
+		local anim = Instance.new("Animation")
+		anim.AnimationId = "rbxassetid://" .. anim_id
+		local k = player.Character.Humanoid:LoadAnimation(anim)
+		k:Play()
+		if speed then k:AdjustSpeed(speed) end
+		fling = true
+		spawn(do_fling)
+		k.Stopped:Once(function() fling = false end)
+	end
+end
+ 
+mouse.KeyDown:Connect(function(key)
+	if key == punch_textbox.Text then
+		if player.Character and player.Character:FindFirstChild("Humanoid") then
+			if player.Character.Humanoid.RigType == Enum.HumanoidRigType.R15 then
+				perform_animation("846744780", 1)
+			else
+				perform_animation("204062532", 1)
+			end
+		end
+	elseif key == slash_textbox.Text then
+		if player.Character and player.Character:FindFirstChild("Humanoid") then
+			if player.Character.Humanoid.RigType == Enum.HumanoidRigType.R15 then
+				perform_animation("675025570", 3.4)
+			else
+				perform_animation("218504594", 1)
+			end
+		end
+	end
+end)
