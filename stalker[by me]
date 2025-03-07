@@ -1,0 +1,201 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player.PlayerGui
+local mouse = player:GetMouse()
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 540)
+frame.Position = UDim2.new(0.5, -100, 0.5, -270)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BackgroundTransparency = 0.5
+frame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Text = "Follow Players"
+title.Size = UDim2.new(1, 0, 0, 30)
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 18
+title.BackgroundTransparency = 1
+title.Parent = frame
+
+local playerNameTextBox = Instance.new("TextBox")
+playerNameTextBox.Size = UDim2.new(1, 0, 0, 40)
+playerNameTextBox.Position = UDim2.new(0, 0, 0, 40)
+playerNameTextBox.PlaceholderText = "Enter player name"
+playerNameTextBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+playerNameTextBox.TextSize = 14
+playerNameTextBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+playerNameTextBox.Parent = frame
+
+local cancelButton = Instance.new("TextButton")
+cancelButton.Size = UDim2.new(1, 0, 0, 40)
+cancelButton.Position = UDim2.new(0, 0, 0, 80)
+cancelButton.Text = "Cancel"
+cancelButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+cancelButton.TextSize = 14
+cancelButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+cancelButton.Parent = frame
+
+local followButton = Instance.new("TextButton")
+followButton.Size = UDim2.new(1, 0, 0, 40)
+followButton.Position = UDim2.new(0, 0, 0, 120)
+followButton.Text = "Follow Player"
+followButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+followButton.TextSize = 14
+followButton.BackgroundColor3 = Color3.fromRGB(0, 0, 255)
+followButton.Parent = frame
+
+local ageButton = Instance.new("TextButton")
+ageButton.Size = UDim2.new(1, 0, 0, 40)
+ageButton.Position = UDim2.new(0, 0, 0, 160)
+ageButton.Text = "Print Player Age"
+ageButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ageButton.TextSize = 14
+ageButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+ageButton.Parent = frame
+
+local walkToButton = Instance.new("TextButton")
+walkToButton.Size = UDim2.new(1, 0, 0, 40)
+walkToButton.Position = UDim2.new(0, 0, 0, 200)
+walkToButton.Text = "Walk To Player"
+walkToButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+walkToButton.TextSize = 14
+walkToButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+walkToButton.Parent = frame
+
+local printAllPlayersButton = Instance.new("TextButton")
+printAllPlayersButton.Size = UDim2.new(1, 0, 0, 40)
+printAllPlayersButton.Position = UDim2.new(0, 0, 0, 240)
+printAllPlayersButton.Text = "Print All Players"
+printAllPlayersButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+printAllPlayersButton.TextSize = 14
+printAllPlayersButton.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+printAllPlayersButton.Parent = frame
+
+local followingPlayer = false
+local walkingToPlayer = false
+
+local function followPlayerByName(playerName)
+    local playersInGame = Players:GetPlayers()
+    local targetPlayer = nil
+
+    for _, otherPlayer in ipairs(playersInGame) do
+        if otherPlayer.Name:lower() == playerName:lower() or otherPlayer.DisplayName:lower() == playerName:lower() then
+            targetPlayer = otherPlayer
+            break
+        end
+    end
+
+    if targetPlayer and targetPlayer ~= player then
+        followingPlayer = true
+        player.Character:MoveTo(targetPlayer.Character.HumanoidRootPart.Position + Vector3.new(0, 5, 0))
+        print("Following player: " .. targetPlayer.Name)
+    else
+        print("Player not found or you're already in the game.")
+    end
+end
+
+ageButton.MouseButton1Click:Connect(function()
+    local playerName = playerNameTextBox.Text
+    if playerName and playerName ~= "" then
+        local playersInGame = Players:GetPlayers()
+        local targetPlayer = nil
+        for _, otherPlayer in ipairs(playersInGame) do
+            if otherPlayer.Name:lower() == playerName:lower() or otherPlayer.DisplayName:lower() == playerName:lower() then
+                targetPlayer = otherPlayer
+                break
+            end
+        end
+
+        if targetPlayer then
+            local accountAge = targetPlayer.AccountAge
+            print("The account age of " .. targetPlayer.Name .. " is " .. accountAge .. " days.")
+        else
+            print("Player not found.")
+        end
+    end
+end)
+
+walkToButton.MouseButton1Click:Connect(function()
+    local playerName = playerNameTextBox.Text
+    if playerName and playerName ~= "" then
+        local playersInGame = Players:GetPlayers()
+        local targetPlayer = nil
+        for _, otherPlayer in ipairs(playersInGame) do
+            if otherPlayer.Name:lower() == playerName:lower() or otherPlayer.DisplayName:lower() == playerName:lower() then
+                targetPlayer = otherPlayer
+                break
+            end
+        end
+
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            walkingToPlayer = true
+            local targetPosition = targetPlayer.Character.HumanoidRootPart.Position
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid:MoveTo(targetPosition)
+                humanoid.MoveToFinished:Connect(function(reached)
+                    if reached then
+                        print("Reached player: " .. targetPlayer.Name)
+                    end
+                end)
+                print("Walking to " .. targetPlayer.Name)
+            end
+        else
+            print("Player not found or not accessible.")
+        end
+    end
+end)
+
+cancelButton.MouseButton1Click:Connect(function()
+    if followingPlayer then
+        followingPlayer = false
+        print("Following canceled.")
+    end
+    if walkingToPlayer then
+        walkingToPlayer = false
+        print("Movement canceled.")
+    end
+end)
+
+followButton.MouseButton1Click:Connect(function()
+    local playerName = playerNameTextBox.Text
+    if playerName and playerName ~= "" then
+        followPlayerByName(playerName)
+    end
+end)
+
+printAllPlayersButton.MouseButton1Click:Connect(function()
+    local playersInGame = Players:GetPlayers()
+    print("Players in the game:")
+    for _, otherPlayer in ipairs(playersInGame) do
+        print(otherPlayer.Name)
+    end
+end)
+
+local dragging = false
+local dragInput, dragStart, startPos
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+
+frame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
