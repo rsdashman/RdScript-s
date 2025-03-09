@@ -1,5 +1,5 @@
 -- Execute external Spider Script
-loadstring(game:HttpGet("https://pastefy.app/wa3v2Vgm/raw"))("Spider Script")
+loadstring(game:HttpGet("https://pastefy.app/wa3v2Vgm/raw"))()
 
 -----------------------------
 -- Services and Variables  --
