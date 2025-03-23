@@ -1,0 +1,70 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- gui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 100, 0, 50)
+button.Position = UDim2.new(0.4, 0, 0.4, 0)
+button.Text = "Freeze"
+button.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+button.Parent = screenGui
+
+-- Drag Function
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = button.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- Toggle Freeze
+local isFrozen = false
+button.MouseButton1Click:Connect(function()
+    if isFrozen then
+        humanoidRootPart.Anchored = false
+        button.Text = "Freeze"
+        button.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    else
+        humanoidRootPart.Anchored = true
+        button.Text = "Unfreeze"
+        button.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    end
+    isFrozen = not isFrozen
+end)
