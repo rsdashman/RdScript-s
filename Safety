@@ -1,0 +1,49 @@
+local player = game.Players.LocalPlayer
+local backpack = player:WaitForChild("Backpack")
+
+local tool = Instance.new("Tool")
+tool.Name = "Safety"
+tool.RequiresHandle = false
+tool.Parent = backpack
+
+local moveSpeed = 50
+local originalGravity = workspace.Gravity
+local floating = false
+local moveDirection = Vector3.new(0, 0, 0)
+
+tool.Equipped:Connect(function()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    humanoidRootPart.Anchored = true
+    humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, 100, 0)
+    floating = true
+end)
+
+tool.Unequipped:Connect(function()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    floating = false
+    humanoidRootPart.Anchored = false
+    workspace.Gravity = 100000000000
+    wait(0.2)
+    workspace.Gravity = originalGravity
+end)
+
+game:GetService("RunService").Heartbeat:Connect(function()
+    if floating then
+        local character = player.Character
+        if character then
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                moveDirection = Vector3.new(
+                    (game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.A) and -moveSpeed or 0) + 
+                    (game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.D) and moveSpeed or 0),
+                    0,
+                    (game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) and -moveSpeed or 0) + 
+                    (game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.S) and moveSpeed or 0)
+                )
+                humanoidRootPart.CFrame = humanoidRootPart.CFrame + humanoidRootPart.CFrame:VectorToWorldSpace(moveDirection * 0.01)
+            end
+        end
+    end
+end)
