@@ -1,0 +1,56 @@
+local player = game.Players.LocalPlayer
+
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false 
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 100, 0, 50)
+button.Position = UDim2.new(1, -110, 0.5, -25) 
+button.BackgroundColor3 = Color3.new(0.8, 0, 0) 
+button.Text = "Carmode Off"
+button.Font = Enum.Font.GothamBlack 
+button.TextSize = 18
+button.TextColor3 = Color3.new(1, 1, 1) 
+button.Parent = screenGui
+
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 40) 
+uiCorner.Parent = button
+
+
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Thickness = 3 
+uiStroke.Color = Color3.new(0, 0, 0) 
+uiStroke.Parent = button
+
+local function setupCharacter(character)
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    local normalSpeed = humanoid.WalkSpeed
+    local sprintSpeed = normalSpeed * 7
+    local isSprinting = false
+
+    button.MouseButton1Click:Connect(function()
+        if isSprinting then
+            humanoid.WalkSpeed = normalSpeed
+            button.BackgroundColor3 = Color3.new(0.8, 0, 0) 
+            button.Text = "Carmode Off"
+        else
+            humanoid.WalkSpeed = sprintSpeed
+            button.BackgroundColor3 = Color3.new(0, 0.8, 0) 
+            button.Text = "Carmode On"
+        end
+        isSprinting = not isSprinting
+    end)
+end
+
+if player.Character then
+    setupCharacter(player.Character)
+end
+
+player.CharacterAdded:Connect(setupCharacter)
