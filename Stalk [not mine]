@@ -1,0 +1,54 @@
+_G.user = ""
+_G.active = false
+
+local Material = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/MaterialLua/master/Module.lua"))()
+
+local ui = Material.Load({
+    Title = "Stalk V3 - ryp#5687",
+    Style = 3,
+    SizeX = 400,
+    SizeY = 250,
+    Theme = "Dark"
+})
+
+local main = ui.New({
+    Title = "Main"
+})
+
+local info = ui.Banner({
+    Text = "enter the name of the person and hit stalk when you wanna stop just hit stop as simple as that"
+})
+
+-- Note: This is just a snippet
+local name = main.TextField({
+    Text = "Name",
+    Callback = function(value)
+        _G.user = value
+    end
+})
+-- Note: This is just a snippet
+local stalk = main.Button({
+    Text = "Stalk",
+    Callback = function()
+        _G.active = true   
+    end
+})
+-- Note: This is just a snippet
+local stop = main.Button({
+    Text = "Stop",
+    Callback = function()
+        _G.active = false   
+    end
+})
+
+game:GetService("RunService").Heartbeat:connect(function()
+    pcall(function()
+        if _G.active then
+            for i,v in pairs(game.Players:GetChildren()) do
+                if string.find(v.Name:lower(),_G.user:lower()) then
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = game.Players[v.Name].Character.HumanoidRootPart.CFrame + game.Players[v.Name].Character.HumanoidRootPart.CFrame.LookVector * -3
+                end
+            end
+        end
+    end)
+end)
