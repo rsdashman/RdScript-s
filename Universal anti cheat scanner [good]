@@ -1,0 +1,1381 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+--------------------------------------------------------------------------------
+-- 1) SERVICES UND VARIABLEN
+--------------------------------------------------------------------------------
+
+local Players          = game:GetService("Players")
+local RunService       = game:GetService("RunService")
+local TweenService     = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer      = Players.LocalPlayer
+
+local toggleKey        = Enum.KeyCode.K
+local MAIN_SIZE        = UDim2.new(0,600,0,400)
+local MIN_SIZE         = UDim2.new(0,600,0,40)
+
+local UI_OPEN          = false
+local UI_MINIMIZED     = false
+local scanningInProgress = false
+local scanningCanceled   = false
+local findingsCount      = 0
+
+local suspiciousObjects = {} -- Neue globale Tabelle zum Speichern verdächtiger Objekte
+
+local suspiciousKeywords = {
+    -- Injection & Code Execution
+    "require",
+    "loadstring",
+    "load",
+    "getfenv",
+    "setfenv",
+    "spawn",
+    "delay",
+    "pcall",
+    "xpcall",
+
+    -- Function Hooking & Bypassing
+    "hookfunction",
+    "hookmetamethod",
+    "getrawmetatable",
+    "setrawmetatable",
+    "getnamecallmethod",
+    "setnamecallmethod",
+    "checkcaller",
+    "getconnections",
+    "getconnection",
+    "getconnectionfunc",
+    "newcclosure",
+    "islclosure",
+    "setfflag",
+    "setidentity",
+    "clonefunction",
+
+    -- Debugging & Introspection
+    "debug.getinfo",
+    "debug.getupvalue",
+    "debug.setupvalue",
+    "debug.getregistry",
+    "getgc",
+    "getconstants",
+    "getconstant",
+    "getgenv",
+    "getrenv",
+    "getsenv",
+    "getmetatable",
+    "setmetatable",
+    "debug.traceback",
+    "getproto",
+    "getprotos",
+
+    -- Event & Input Simulation
+    "fireclickdetector",
+    "firetouchinterest",
+    "firesignal",
+    "MouseButton1Click",
+    "MouseButton1Down",
+    "MouseButton1Up",
+    "MouseButton2Click",
+    "keypress",
+    "keyrelease",
+    "keytap",
+    "mousemoverel",
+    "mousescroll",
+
+    -- Externes I/O (Datei & Netzwerk)
+    "writefile",
+    "appendfile",
+    "delfile",
+    "readfile",
+    "loadfile",
+    "isfile",
+    "isfolder",
+    "makefolder",
+    "setclipboard",
+    "getclipboard",
+    "HttpGet",
+    "HttpPost",
+    "syn.request",
+    "http_request",
+    "request",
+    "queue_on_teleport",
+    "rconsoleprint",
+    "rconsoleinfo",
+
+    -- Anticheat & Detection
+    "kick",
+    "ban",
+    "antiCheat",
+    "ExploitDetected",
+    "WalkSpeed",
+    "JumpPower",
+    "HumanoidRootPart",
+    "Health",
+    "RemoteEvent",
+    "RemoteFunction",
+    "BindableEvent",
+    "BindableFunction",
+
+    -- Obfuscation & Code Hiding
+    "string.char",
+    "string.byte",
+    "string.reverse",
+    "string.gsub",
+    "bit32.bxor",
+    "base64",
+    "decode",
+    "encode",
+
+    -- Exploit-Tools & Executor-Indikatoren
+    "syn",
+    "KRNL_LOADED",
+    "isexecutorclosure",
+    "SENTINEL_LOADED",
+    "secure_load",
+    "PROTOSMASHER_LOADED",
+    "pebc_execute",
+    "is_sirhurt_closure",
+    "WrapGlobal",
+    "isvm",
+    "shadow_env",
+    "CalamariLuaEnv",
+
+    -- Allgemeine Exploit-/Hacking-Begriffe
+    "cheat",
+    "hack",
+    "exploit",
+    "injection",
+    "bypass",
+    "noclip",
+    "infjump",
+    "speedhack",
+    "setreadonly",
+    "getrawmetatable",
+    "hookmetamethod",
+    "debug",
+    "anticheat",
+    "detector",
+    "obfuscate",
+    "obfuscated",
+    "malware",
+    "virus",
+    "stealer",
+    "inject",
+    "override",
+    "hook",
+    "godmode",
+    "log",
+    "monitor",
+    "suspicious",
+    "leak",
+    "injector",
+    "reverse",
+    "reverseengineering",
+    "backdoor",
+    "trojan",
+    "keylogger",
+    "spy",
+    "spyware",
+    "rootkit",
+    "dump",
+    "dumping",
+    "spoof",
+    "spoofing",
+    "packet",
+    "intercept",
+    "sniff",
+    "sniffer",
+    "ddos",
+    "denial",
+    "crash",
+    "vulnerability",
+    "exploitative",
+    "unauthorized",
+    "illegal",
+    "pirate",
+    "cheater",
+    "aimbot",
+    "wallhack",
+    "triggerbot",
+    "hacktool",
+    "hackclient",
+    "modmenu",
+    "modded",
+    "cheats",
+    "autoclicker",
+    "bot",
+    "scripter",
+    "scripting",
+    "reinject",
+    "substitute",
+    "moddedclient",
+    "glitch",
+    "bug",
+    "exploiter",
+    "malicious",
+    "hacked",
+    "systemoverride",
+    "dataleak",
+    "credential",
+    "phish",
+    "spoofed",
+    "forged",
+    "tamper",
+    "tampering",
+    "bypasssecurity",
+    "securityhole",
+    "unauthaccess",
+    "privilege",
+    "elevate",
+    "elevation",
+    "insecure",
+    "vuln"
+}
+
+
+
+--------------------------------------------------------------------------------
+-- 2) DECOMPILE-FUNKTIONEN UND HELFER
+--------------------------------------------------------------------------------
+
+local function safeDecompile(obj)
+    if typeof(decompile) == "function" then
+        local ok,res = pcall(decompile,obj)
+        if ok then
+            return res
+        else
+            return "Error:\n" .. tostring(res)
+        end
+    end
+    return "No decompile() available in this environment."
+end
+
+local function getSuspicionLevel(code)
+    if not code then
+        return "Unsuspicious",0
+    end
+    local lower = code:lower()
+    local hits = 0
+    for _,kw in ipairs(suspiciousKeywords) do
+        if lower:find(kw) then
+            hits = hits + 1
+        end
+    end
+    if hits==0 then
+        return "Unsuspicious",0
+    elseif hits==1 then
+        return "Might be Anticheat",1
+    else
+        return "Could be Anticheat",hits
+    end
+end
+
+local function checkRequireCalls(code)
+    local found={}
+    for match in code:gmatch("[Rr]equire%s*%((.-)%)") do
+        table.insert(found,match)
+    end
+    if #found>0 then
+        return "\n\nRequire calls found:\n".. table.concat(found,"\n")
+    end
+    return ""
+end
+
+local function tryGetUpvalues(f)
+    local ret={}
+    if debug and debug.getupvalues then
+        local ok, vals = pcall(debug.getupvalues, f)
+        if ok and vals then
+            for i,v in pairs(vals) do
+                table.insert(ret, "Upvalue #"..i.." = ".. tostring(v))
+            end
+        end
+    end
+    return ret
+end
+
+local function processInBatches(list, callback, batchSize, progressCb)
+    batchSize = batchSize or 100
+    local counter=0
+    for i,v in ipairs(list) do
+        if scanningCanceled then
+            return
+        end
+        callback(v,i,#list)
+        counter=counter+1
+        if counter>=batchSize then
+            counter=0
+            RunService.Heartbeat:Wait()
+        end
+        if progressCb then
+            progressCb(i,#list)
+        end
+    end
+end
+
+--------------------------------------------------------------------------------
+-- 3) REMOTE/EXPLOIT INFOS
+--------------------------------------------------------------------------------
+
+local function remoteExtraInfo(o)
+    local s = "Path: "..o:GetFullName().."\nType: "..o.ClassName
+    s = s.."\n\nRemotes can be triggered by scripts or clients.\nCheck .OnServerEvent or .OnServerInvoke.\nBlock usage if suspicious."
+    return s
+end
+
+local function exploitInfo()
+    return "Cheaters can override metamethods or debug functions.\nAdd server checks or randomization to deter hooking."
+end
+
+--------------------------------------------------------------------------------
+-- 4) SCREEN GUI + CONTAINER
+--------------------------------------------------------------------------------
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name="FinalACFinder"
+ScreenGui.Parent=LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn=false
+
+local Container=Instance.new("Frame")
+Container.Name="Container"
+Container.Parent=ScreenGui
+Container.AnchorPoint=Vector2.new(0.5,0.5)
+Container.Position=UDim2.new(0.5,0,0.5,0)
+Container.Size=UDim2.new(0,0,0,0)
+Container.BackgroundTransparency=1
+
+--------------------------------------------------------------------------------
+-- 5) NOTIFICATION-FUNKTION
+--------------------------------------------------------------------------------
+
+local function showCustomNotification(title,message,duration)
+    duration=duration or 3
+    local noti=Instance.new("Frame")
+    noti.BackgroundColor3=Color3.fromRGB(30,30,30)
+    noti.BorderSizePixel=0
+    noti.Size=UDim2.new(0,0,0,50)
+    noti.ClipsDescendants=true
+    noti.Parent=ScreenGui
+
+    local c=Instance.new("UICorner",noti)
+    c.CornerRadius=UDim.new(0,8)
+    local s=Instance.new("UIStroke",noti)
+    s.Thickness=1
+    s.Color=Color3.fromRGB(80,80,80)
+
+    local tLab=Instance.new("TextLabel")
+    tLab.Parent=noti
+    tLab.BackgroundTransparency=1
+    tLab.Size=UDim2.new(1,-10,0,20)
+    tLab.Position=UDim2.new(0,5,0,5)
+    tLab.Font=Enum.Font.SourceSansBold
+    tLab.TextSize=14
+    tLab.TextColor3=Color3.fromRGB(255,255,255)
+    tLab.TextXAlignment=Enum.TextXAlignment.Left
+    tLab.Text=title
+
+    local mLab=Instance.new("TextLabel")
+    mLab.Parent=noti
+    mLab.BackgroundTransparency=1
+    mLab.Size=UDim2.new(1,-10,0,20)
+    mLab.Position=UDim2.new(0,5,0,25)
+    mLab.Font=Enum.Font.SourceSans
+    mLab.TextSize=14
+    mLab.TextColor3=Color3.fromRGB(220,220,220)
+    mLab.TextXAlignment=Enum.TextXAlignment.Left
+    mLab.Text=message
+
+    noti:TweenSize(UDim2.new(0,300,0,50),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,0.15,true)
+
+    task.delay(duration,function()
+        noti:TweenSize(UDim2.new(0,0,0,50),Enum.EasingDirection.In,Enum.EasingStyle.Quad,0.15,true,function()
+            noti:Destroy()
+        end)
+    end)
+end
+
+--------------------------------------------------------------------------------
+-- 6) MAIN FRAME + BUTTONS
+--------------------------------------------------------------------------------
+
+local MainFrame=Instance.new("Frame")
+MainFrame.Name="MainFrame"
+MainFrame.Parent=Container
+MainFrame.BackgroundColor3=Color3.fromRGB(20,20,20)
+MainFrame.BorderSizePixel=0
+MainFrame.Size=MAIN_SIZE
+
+local mainCorner=Instance.new("UICorner",MainFrame)
+mainCorner.CornerRadius=UDim.new(0,15)
+
+local mainStroke=Instance.new("UIStroke",MainFrame)
+mainStroke.Color=Color3.fromRGB(76,76,76)
+mainStroke.Thickness=1
+
+local TitleLabel=Instance.new("TextLabel")
+TitleLabel.Name="Title"
+TitleLabel.Parent=MainFrame
+TitleLabel.BackgroundTransparency=1
+TitleLabel.Position=UDim2.new(0.02,0,0.03,0)
+TitleLabel.Size=UDim2.new(0,300,0,20)
+TitleLabel.Font=Enum.Font.SourceSansBold
+TitleLabel.Text="Anticheat Finder | by cyberseall"
+TitleLabel.TextColor3=Color3.fromRGB(255,255,255)
+TitleLabel.TextSize=16
+TitleLabel.TextXAlignment=Enum.TextXAlignment.Left
+
+local Shadow=Instance.new("Frame")
+Shadow.Name="Shadow"
+Shadow.Parent=MainFrame
+Shadow.AnchorPoint=Vector2.new(0.5,0.5)
+Shadow.Position=UDim2.new(0.5,0,0.5,0)
+Shadow.Size=UDim2.new(1,35,1,35)
+Shadow.BackgroundTransparency=1
+
+local ShadowImage=Instance.new("ImageLabel")
+ShadowImage.Name="ShadowImage"
+ShadowImage.Parent=Shadow
+ShadowImage.AnchorPoint=Vector2.new(0.5,0.5)
+ShadowImage.Position=UDim2.new(0.5,0,0.5,0)
+ShadowImage.Size=UDim2.new(1.74,0,1.4,0)
+ShadowImage.Image="rbxassetid://5587865193"
+ShadowImage.ImageColor3=Color3.fromRGB(20,20,20)
+ShadowImage.ImageTransparency=0.48
+ShadowImage.BackgroundTransparency=1
+
+local function hideMainGUI()
+    if not UI_OPEN then return end
+    UI_OPEN=false
+    TweenService:Create(Container,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{
+        Size=UDim2.new(0,0,0,0)
+    }):Play()
+    showCustomNotification("UI closed","Press K to reopen",3)
+end
+
+local CloseBtn=Instance.new("TextButton")
+CloseBtn.Name="CloseBtn"
+CloseBtn.Parent=MainFrame
+CloseBtn.AnchorPoint=Vector2.new(1,0)
+CloseBtn.Position=UDim2.new(1,-5,0,5)
+CloseBtn.Size=UDim2.new(0,25,0,25)
+CloseBtn.Text="X"
+CloseBtn.Font=Enum.Font.SourceSansBold
+CloseBtn.TextSize=14
+CloseBtn.BackgroundColor3=Color3.fromRGB(200,50,50)
+CloseBtn.TextColor3=Color3.fromRGB(255,255,255)
+local cco=Instance.new("UICorner",CloseBtn)
+cco.CornerRadius=UDim.new(0,5)
+CloseBtn.MouseButton1Click:Connect(function()
+    hideMainGUI()
+end)
+
+local MinBtn=Instance.new("TextButton")
+MinBtn.Name="MinimizeBtn"
+MinBtn.Parent=MainFrame
+MinBtn.AnchorPoint=Vector2.new(1,0)
+MinBtn.Position=UDim2.new(1,-35,0,5)
+MinBtn.Size=UDim2.new(0,25,0,25)
+MinBtn.Text="_"
+MinBtn.Font=Enum.Font.SourceSansBold
+MinBtn.TextSize=20
+MinBtn.BackgroundColor3=Color3.fromRGB(27,27,27)
+MinBtn.TextColor3=Color3.fromRGB(255,255,255)
+local minCorner=Instance.new("UICorner",MinBtn)
+minCorner.CornerRadius=UDim.new(0,5)
+
+local dragging=false
+local dragStart
+local startPos
+MainFrame.InputBegan:Connect(function(input)
+    if not UI_MINIMIZED and input.UserInputType==Enum.UserInputType.MouseButton1 then
+        dragging=true
+        dragStart=input.Position
+        startPos=MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState==Enum.UserInputState.End then
+                dragging=false
+            end
+        end)
+    end
+end)
+MainFrame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType==Enum.UserInputType.MouseMovement then
+        local delta=input.Position - dragStart
+        MainFrame.Position=UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset+delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset+delta.Y
+        )
+    end
+end)
+
+MinBtn.MouseButton1Click:Connect(function()
+    if UI_MINIMIZED then
+        TweenService:Create(MainFrame,TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=MAIN_SIZE}):Play()
+        UI_MINIMIZED=false
+    else
+        TweenService:Create(MainFrame,TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=MIN_SIZE}):Play()
+        UI_MINIMIZED=true
+    end
+end)
+
+local function showMainGUI()
+    if UI_OPEN then return end
+    UI_OPEN=true
+    Container.Size=UDim2.new(0,0,0,0)
+    Container.Position=UDim2.new(0.5,0,0.5,0)
+    Container.BackgroundTransparency=1
+    TweenService:Create(Container,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+        Size=MAIN_SIZE
+    }):Play()
+end
+
+local function toggleGUI()
+    if UI_OPEN then
+        hideMainGUI()
+    else
+        showMainGUI()
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if not gp and input.KeyCode==toggleKey then
+        toggleGUI()
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 7) CONTENT FRAME + SCROLLINGFRAME
+--------------------------------------------------------------------------------
+
+local ContentFrame=Instance.new("Frame")
+ContentFrame.Name="ContentFrame"
+ContentFrame.Parent=MainFrame
+ContentFrame.BackgroundTransparency=1
+ContentFrame.Position=UDim2.new(0,0,0,40)
+ContentFrame.Size=UDim2.new(1,0,1,-40)
+
+local Listener=Instance.new("ScrollingFrame")
+Listener.Name="Listener"
+Listener.Parent=ContentFrame
+Listener.BackgroundTransparency=1
+Listener.Position=UDim2.new(0,10,0,10)
+Listener.Size=UDim2.new(1,-20,0,250)
+Listener.CanvasSize=UDim2.new(0,0,10,0)
+Listener.ScrollBarThickness=6
+
+local layout=Instance.new("UIListLayout")
+layout.Parent=Listener
+layout.SortOrder=Enum.SortOrder.LayoutOrder
+layout.Padding=UDim.new(0,5)
+
+local ResultTemplate=Instance.new("Frame")
+ResultTemplate.Name="ResultTemplate"
+ResultTemplate.BackgroundTransparency=1
+ResultTemplate.Size=UDim2.new(1,0,0,25)
+
+local PathLabel=Instance.new("TextLabel")
+PathLabel.Name="Path"
+PathLabel.Parent=ResultTemplate
+PathLabel.BackgroundTransparency=1
+PathLabel.Position=UDim2.new(0,5,0,0)
+PathLabel.Size=UDim2.new(1,-140,1,0)
+PathLabel.Font=Enum.Font.SourceSans
+PathLabel.TextColor3=Color3.fromRGB(161,161,161)
+PathLabel.TextSize=14
+PathLabel.TextXAlignment=Enum.TextXAlignment.Left
+PathLabel.TextTruncate=Enum.TextTruncate.AtEnd
+PathLabel.RichText=true
+
+local ViewBtn=Instance.new("TextButton")
+ViewBtn.Name="View"
+ViewBtn.Parent=ResultTemplate
+ViewBtn.BackgroundColor3=Color3.fromRGB(27,27,27)
+ViewBtn.Size=UDim2.new(0,60,0,25)
+ViewBtn.AnchorPoint=Vector2.new(1,0)
+ViewBtn.Position=UDim2.new(1,-70,0,0)
+ViewBtn.Font=Enum.Font.SourceSans
+ViewBtn.TextColor3=Color3.fromRGB(255,255,255)
+ViewBtn.TextSize=14
+ViewBtn.Text="View"
+local vbCorner=Instance.new("UICorner",ViewBtn)
+vbCorner.CornerRadius=UDim.new(0,5)
+local vbStroke=Instance.new("UIStroke",ViewBtn)
+vbStroke.Thickness=1
+vbStroke.Color=Color3.fromRGB(36,36,36)
+
+local CopyBtn=Instance.new("TextButton")
+CopyBtn.Name="Copy"
+CopyBtn.Parent=ResultTemplate
+CopyBtn.BackgroundColor3=Color3.fromRGB(27,27,27)
+CopyBtn.Size=UDim2.new(0,60,0,25)
+CopyBtn.AnchorPoint=Vector2.new(1,0)
+CopyBtn.Position=UDim2.new(1,-5,0,0)
+CopyBtn.Font=Enum.Font.SourceSans
+CopyBtn.TextColor3=Color3.fromRGB(255,255,255)
+CopyBtn.TextSize=14
+CopyBtn.Text="Copy"
+local cbCorner=Instance.new("UICorner",CopyBtn)
+cbCorner.CornerRadius=UDim.new(0,5)
+local cbStroke=Instance.new("UIStroke",CopyBtn)
+cbStroke.Thickness=1
+cbStroke.Color=Color3.fromRGB(36,36,36)
+
+--------------------------------------------------------------------------------
+-- 8) ACTION ZONE (UNINJECT, START, MULTI, STOP SUSPICIOUS)
+--------------------------------------------------------------------------------
+
+local ActionZone=Instance.new("Frame")
+ActionZone.Name="ActionZone"
+ActionZone.Parent=ContentFrame
+ActionZone.BackgroundTransparency=1
+ActionZone.Position=UDim2.new(0,0,1,-40)
+ActionZone.Size=UDim2.new(1,0,0,40)
+
+local Uninject=Instance.new("TextButton")
+Uninject.Name="Uninject"
+Uninject.Parent=ActionZone
+Uninject.BackgroundColor3=Color3.fromRGB(27,27,27)
+Uninject.Size=UDim2.new(0,120,0,30)
+Uninject.Position=UDim2.new(0,10,0,5)
+Uninject.Font=Enum.Font.SourceSansBold
+Uninject.TextColor3=Color3.fromRGB(255,255,255)
+Uninject.TextSize=16
+Uninject.Text="Uninject"
+local unCorner=Instance.new("UICorner",Uninject)
+unCorner.CornerRadius=UDim.new(0,5)
+local unStroke=Instance.new("UIStroke",Uninject)
+unStroke.Thickness=1
+unStroke.Color=Color3.fromRGB(36,36,36)
+
+local StartBtn=Instance.new("TextButton")
+StartBtn.Name="StartAnalysis"
+StartBtn.Parent=ActionZone
+StartBtn.BackgroundColor3=Color3.fromRGB(27,27,27)
+StartBtn.Size=UDim2.new(0,120,0,30)
+StartBtn.Position=UDim2.new(0,140,0,5)
+StartBtn.Font=Enum.Font.SourceSansBold
+StartBtn.TextColor3=Color3.fromRGB(255,255,255)
+StartBtn.TextSize=16
+StartBtn.Text="Start Analysis"
+local sCorner=Instance.new("UICorner",StartBtn)
+sCorner.CornerRadius=UDim.new(0,5)
+local sStroke=Instance.new("UIStroke",StartBtn)
+sStroke.Thickness=1
+sStroke.Color=Color3.fromRGB(36,36,36)
+
+local MultiBtn=Instance.new("TextButton")
+MultiBtn.Name="MultiScan"
+MultiBtn.Parent=ActionZone
+MultiBtn.BackgroundColor3=Color3.fromRGB(27,27,27)
+MultiBtn.Size=UDim2.new(0,120,0,30)
+MultiBtn.Position=UDim2.new(0,270,0,5)
+MultiBtn.Font=Enum.Font.SourceSansBold
+MultiBtn.TextColor3=Color3.fromRGB(255,255,255)
+MultiBtn.TextSize=16
+MultiBtn.Text="Multi-Scan"
+local mCorner=Instance.new("UICorner",MultiBtn)
+mCorner.CornerRadius=UDim.new(0,5)
+local mStroke=Instance.new("UIStroke",MultiBtn)
+mStroke.Thickness=1
+mStroke.Color=Color3.fromRGB(36,36,36)
+
+-- Neuer Button zum Stoppen verdächtiger Scripts
+local StopSuspiciousBtn = Instance.new("TextButton")
+StopSuspiciousBtn.Name = "StopSuspicious"
+StopSuspiciousBtn.Parent = ActionZone
+StopSuspiciousBtn.BackgroundColor3 = Color3.fromRGB(27,27,27)
+StopSuspiciousBtn.Size = UDim2.new(0,180,0,30)
+StopSuspiciousBtn.Position = UDim2.new(0,400,0,5)
+StopSuspiciousBtn.Font = Enum.Font.SourceSansBold
+StopSuspiciousBtn.TextColor3 = Color3.fromRGB(255,255,255)
+StopSuspiciousBtn.TextSize = 16
+StopSuspiciousBtn.Text = "Stop Suspicious"
+local ssCorner = Instance.new("UICorner", StopSuspiciousBtn)
+ssCorner.CornerRadius = UDim.new(0, 5)
+local ssStroke = Instance.new("UIStroke", StopSuspiciousBtn)
+ssStroke.Thickness = 1
+ssStroke.Color = Color3.fromRGB(36,36,36)
+
+StopSuspiciousBtn.MouseButton1Click:Connect(function()
+    for _, obj in ipairs(suspiciousObjects) do
+        if obj and obj.Parent then
+            showCustomNotification("Stopped", "Stopped: " .. obj:GetFullName(), 2)
+            obj:Destroy()
+        end
+    end
+    suspiciousObjects = {}
+end)
+
+--------------------------------------------------------------------------------
+-- 9) SCRIPT VIEWER
+--------------------------------------------------------------------------------
+
+local function openScriptViewer(txt)
+    local viewer=Instance.new("Frame")
+    viewer.Name="ScriptViewer"
+    viewer.Parent=ScreenGui
+    viewer.BackgroundColor3=Color3.fromRGB(15,15,15)
+    viewer.BorderSizePixel=0
+    viewer.Position=UDim2.new(0.3,0,0.3,0)
+    viewer.Size=UDim2.new(0,600,0,400)
+
+    local vCorner=Instance.new("UICorner",viewer)
+    vCorner.CornerRadius=UDim.new(0,10)
+    local vStroke=Instance.new("UIStroke",viewer)
+    vStroke.Thickness=1
+    vStroke.Color=Color3.fromRGB(75,75,75)
+
+    local Topbar=Instance.new("Frame")
+    Topbar.Name="Topbar"
+    Topbar.Parent=viewer
+    Topbar.BackgroundColor3=Color3.fromRGB(20,20,20)
+    Topbar.BorderSizePixel=0
+    Topbar.Size=UDim2.new(1,0,0,30)
+
+    local tbCorner=Instance.new("UICorner",Topbar)
+    tbCorner.CornerRadius=UDim.new(0,10)
+
+    local Title=Instance.new("TextLabel")
+    Title.Name="Title"
+    Title.Parent=Topbar
+    Title.BackgroundTransparency=1
+    Title.Size=UDim2.new(0.7,0,1,0)
+    Title.Position=UDim2.new(0.02,0,0,0)
+    Title.Font=Enum.Font.SourceSansBold
+    Title.TextSize=16
+    Title.TextColor3=Color3.fromRGB(255,255,255)
+    Title.Text="Script Viewer"
+    Title.TextXAlignment=Enum.TextXAlignment.Left
+
+    local MinV=Instance.new("TextButton")
+    MinV.Name="MinBtn"
+    MinV.Parent=Topbar
+    MinV.AnchorPoint=Vector2.new(1,0)
+    MinV.Position=UDim2.new(1,-60,0,0)
+    MinV.Size=UDim2.new(0,30,0,30)
+    MinV.Text="_"
+    MinV.Font=Enum.Font.SourceSansBold
+    MinV.TextSize=20
+    MinV.BackgroundColor3=Color3.fromRGB(27,27,27)
+    MinV.TextColor3=Color3.fromRGB(255,255,255)
+    local miniCC=Instance.new("UICorner",MinV)
+    miniCC.CornerRadius=UDim.new(0,5)
+
+    local Close2=Instance.new("TextButton")
+    Close2.Name="Close2"
+    Close2.Parent=Topbar
+    Close2.AnchorPoint=Vector2.new(1,0)
+    Close2.Position=UDim2.new(1,-30,0,0)
+    Close2.Size=UDim2.new(0,30,0,30)
+    Close2.Text="X"
+    Close2.Font=Enum.Font.SourceSansBold
+    Close2.TextSize=14
+    Close2.BackgroundColor3=Color3.fromRGB(200,50,50)
+    Close2.TextColor3=Color3.fromRGB(255,255,255)
+    local closeC=Instance.new("UICorner",Close2)
+    closeC.CornerRadius=UDim.new(0,5)
+
+    local ViewerContent=Instance.new("Frame")
+    ViewerContent.Name="ViewerContent"
+    ViewerContent.Parent=viewer
+    ViewerContent.BackgroundTransparency=1
+    ViewerContent.Position=UDim2.new(0,0,0,30)
+    ViewerContent.Size=UDim2.new(1,0,1,-30)
+
+    local CodeBox=Instance.new("TextBox")
+    CodeBox.Name="CodeBox"
+    CodeBox.Parent=ViewerContent
+    CodeBox.BackgroundColor3=Color3.fromRGB(25,25,25)
+    CodeBox.Position=UDim2.new(0,10,0,10)
+    CodeBox.Size=UDim2.new(1,-20,1,-20)
+    CodeBox.ClearTextOnFocus=false
+    CodeBox.MultiLine=true
+    CodeBox.TextSize=14
+    CodeBox.TextWrapped=true
+    CodeBox.Font=Enum.Font.Code
+    CodeBox.TextColor3=Color3.fromRGB(255,255,255)
+    CodeBox.TextXAlignment=Enum.TextXAlignment.Left
+    CodeBox.TextYAlignment=Enum.TextYAlignment.Top
+    CodeBox.Selectable=true
+    CodeBox.TextEditable=false
+    CodeBox.Text=txt or "No code available."
+
+    local cbCorner=Instance.new("UICorner",CodeBox)
+    cbCorner.CornerRadius=UDim.new(0,5)
+    local cbStroke=Instance.new("UIStroke",CodeBox)
+    cbStroke.Color=Color3.fromRGB(40,40,40)
+    cbStroke.Thickness=1
+
+    local minimizedV=false
+    MinV.MouseButton1Click:Connect(function()
+        minimizedV=not minimizedV
+        if minimizedV then
+            ViewerContent:TweenSize(
+                UDim2.new(1,0,0,0),
+                Enum.EasingDirection.Out,
+                Enum.EasingStyle.Quad,
+                0.2,
+                true
+            )
+        else
+            ViewerContent:TweenSize(
+                UDim2.new(1,0,1,-30),
+                Enum.EasingDirection.Out,
+                Enum.EasingStyle.Quad,
+                0.2,
+                true
+            )
+        end
+    end)
+
+    Close2.MouseButton1Click:Connect(function()
+        viewer:Destroy()
+        showCustomNotification("Viewer","UI closed. Press K to reopen main GUI if needed.",2)
+    end)
+
+    local draggingV=false
+    local dragStartV
+    local startPosV
+    Topbar.InputBegan:Connect(function(inp)
+        if not minimizedV and inp.UserInputType==Enum.UserInputType.MouseButton1 then
+            draggingV=true
+            dragStartV=inp.Position
+            startPosV=viewer.Position
+            inp.Changed:Connect(function()
+                if inp.UserInputState==Enum.UserInputState.End then
+                    draggingV=false
+                end
+            end)
+        end
+    end)
+    Topbar.InputChanged:Connect(function(inp)
+        if draggingV and inp.UserInputType==Enum.UserInputType.MouseMovement then
+            local delta=inp.Position - dragStartV
+            viewer.Position=UDim2.new(startPosV.X.Scale,startPosV.X.Offset+delta.X,startPosV.Y.Scale,startPosV.Y.Offset+delta.Y)
+        end
+    end)
+
+    local ResizeGrip=Instance.new("Frame")
+    ResizeGrip.Name="ResizeGrip"
+    ResizeGrip.Parent=viewer
+    ResizeGrip.AnchorPoint=Vector2.new(1,1)
+    ResizeGrip.Position=UDim2.new(1,0,1,0)
+    ResizeGrip.Size=UDim2.new(0,15,0,15)
+    ResizeGrip.BackgroundColor3=Color3.fromRGB(40,40,40)
+    local rcorner=Instance.new("UICorner",ResizeGrip)
+    rcorner.CornerRadius=UDim.new(0,5)
+
+    local resizing=false
+    local resizeStart
+    local startSize
+    ResizeGrip.InputBegan:Connect(function(inpt)
+        if inpt.UserInputType==Enum.UserInputType.MouseButton1 then
+            resizing=true
+            resizeStart=inpt.Position
+            startSize=viewer.Size
+            inpt.Changed:Connect(function()
+                if inpt.UserInputState==Enum.UserInputState.End then
+                    resizing=false
+                end
+            end)
+        end
+    end)
+    ResizeGrip.InputChanged:Connect(function(inpt)
+        if resizing and inpt.UserInputType==Enum.UserInputType.MouseMovement then
+            local delta=inpt.Position - resizeStart
+            local newX=startSize.X.Offset+delta.X
+            local newY=startSize.Y.Offset+delta.Y
+            if newX<300 then newX=300 end
+            if newY<80 then newY=80 end
+            viewer.Size=UDim2.new(0,newX,0,newY)
+        end
+    end)
+end
+
+--------------------------------------------------------------------------------
+-- 10) RESULT ITEM + UNSUSPICIOUS NACH 2s LÖSCHEN
+--------------------------------------------------------------------------------
+
+local function createResultItem(labelText, codeDetails)
+    local newItem = ResultTemplate:Clone()
+    newItem.Visible=true
+    newItem.Name="ResultItem"
+    newItem.Parent=Listener
+
+    local path=newItem:FindFirstChild("Path")
+    local view=newItem:FindFirstChild("View")
+    local copy=newItem:FindFirstChild("Copy")
+
+    if path then
+        path.Text=labelText
+    end
+
+    -- Wenn "Unsuspicious" in grauer Farbe => auto remove nach 2s
+    if labelText:find("<font color='rgb%(180,180,180%)'>Unsuspicious</font>") then
+        local refItem=newItem
+        task.delay(2,function()
+            if refItem and refItem.Parent then
+                refItem:Destroy()
+            end
+        end)
+    end
+
+    if view then
+        view.MouseButton1Click:Connect(function()
+            openScriptViewer(codeDetails)
+        end)
+    end
+    if copy then
+        copy.MouseButton1Click:Connect(function()
+            if setclipboard then
+                setclipboard(codeDetails)
+                showCustomNotification("Copied","Code copied to clipboard!",2)
+            else
+                showCustomNotification("Error","setclipboard() not available!",2)
+            end
+        end)
+    end
+end
+
+--------------------------------------------------------------------------------
+-- 11) SCAN-FUNKTIONEN (SINGLE/MULTI) mit zusätzlichen Checks
+--------------------------------------------------------------------------------
+
+local function updateProgress(txt)
+    TitleLabel.Text="Anticheat Finder | ".. txt
+end
+
+scanningCanceled = false
+
+-- Erweiterte Scan-Funktion: Zusätzlich zu den bestehenden Checks
+local function singleScan()
+    if scanningInProgress then
+        showCustomNotification("Scan","Already scanning!",2)
+        return
+    end
+    scanningInProgress=true
+    scanningCanceled=false
+    findingsCount=0
+
+    for _,child in ipairs(Listener:GetChildren()) do
+        if child.Name=="ResultItem" then
+            child:Destroy()
+        end
+    end
+
+    updateProgress("Starting single-thread scan...")
+    showCustomNotification("Analysis","Starting analysis...",2)
+
+    -- 1. Scripts aus dem Spiel
+    local function doScripts()
+        local desc=game:GetDescendants()
+        processInBatches(desc,function(o)
+            if o:IsA("LocalScript") or o:IsA("ModuleScript") or o:IsA("Script") then
+                local code=safeDecompile(o)
+                local st,hits=getSuspicionLevel(code)
+                local colorLabel
+                if st=="Unsuspicious" then
+                    colorLabel=("Script: %s [<font color='rgb(180,180,180)'>%s</font>]"):format(o:GetFullName(),st)
+                elseif st=="Might be Anticheat" then
+                    colorLabel=("Script: %s [<font color='rgb(255,140,0)'>%s</font>]"):format(o:GetFullName(),st)
+                else
+                    colorLabel=("Script: %s [<font color='rgb(255,50,50)'>%s</font>]"):format(o:GetFullName(),st)
+                    table.insert(suspiciousObjects, o)
+                end
+                local details="Path: "..o:GetFullName().."\nStatus: "..st.." ("..hits.." hits)\n\n".. code.. checkRequireCalls(code)
+                createResultItem(colorLabel,details)
+                findingsCount=findingsCount+1
+            end
+        end,100,function(i,t)
+            updateProgress("Analyzing scripts ("..i.."/"..t..")...")
+        end)
+    end
+
+    doScripts()
+    if scanningCanceled then
+        updateProgress("Scan canceled (scripts).")
+        scanningInProgress=false
+        return
+    end
+
+    -- 2. GC-Scan
+    local function doGC()
+        if not getgc then
+            createResultItem("getgc() missing","Cannot scan GC.")
+            return
+        end
+        local gl=getgc(true)
+        processInBatches(gl,function(f)
+            if type(f)=="function" and islclosure and islclosure(f) then
+                local code=safeDecompile(f)
+                local st,hits=getSuspicionLevel(code)
+                local colorLine
+                if st=="Unsuspicious" then
+                    colorLine="Function (getgc) [<font color='rgb(180,180,180)'>Unsuspicious</font>]"
+                elseif st=="Might be Anticheat" then
+                    colorLine="Function (getgc) [<font color='rgb(255,140,0)'>Might be Anticheat</font>]"
+                else
+                    colorLine="Function (getgc) [<font color='rgb(255,50,50)'>Could be Anticheat</font>]"
+                end
+                local details="--- Decompiled Function ---\n".. code.. checkRequireCalls(code)
+                local ups=tryGetUpvalues(f)
+                if #ups>0 then
+                    details=details.. "\n\nUpvalues:\n".. table.concat(ups,"\n")
+                end
+                createResultItem(colorLine,details)
+                findingsCount=findingsCount+1
+            end
+        end,100,function(i,t)
+            updateProgress("Analyzing GC ("..i.."/"..t..")...")
+        end)
+    end
+
+    doGC()
+    if scanningCanceled then
+        updateProgress("Scan canceled (getgc).")
+        scanningInProgress=false
+        return
+    end
+
+    -- 3. Remotes
+    local function doRem()
+        local dList=game:GetDescendants()
+        processInBatches(dList,function(o)
+            if o:IsA("RemoteEvent") or o:IsA("RemoteFunction")
+               or o:IsA("BindableEvent") or o:IsA("BindableFunction") then
+                local ln=o.Name:lower()
+                local suspicious=false
+                for _,k in ipairs(suspiciousKeywords) do
+                    if ln:find(k) then
+                        suspicious=true
+                        break
+                    end
+                end
+                local st=suspicious and "Could be Anticheat" or "Unsuspicious"
+                local line
+                if st=="Unsuspicious" then
+                    line=("Remote: %s [<font color='rgb(180,180,180)'>%s</font>]"):format(o:GetFullName(),st)
+                else
+                    line=("Remote: %s [<font color='rgb(255,50,50)'>%s</font>]"):format(o:GetFullName(),st)
+                end
+                local info=remoteExtraInfo(o).. "\nStatus: "..st
+                createResultItem(line,info)
+                findingsCount=findingsCount+1
+            end
+        end,100,function(i,t)
+            updateProgress("Analyzing remotes ("..i.."/"..t..")...")
+        end)
+    end
+
+    doRem()
+    if scanningCanceled then
+        updateProgress("Scan canceled (remotes).")
+        scanningInProgress=false
+        return
+    end
+
+    -- 4. CoreGui-Scan (neu)
+    local function doCoreGuiScan()
+        local coreGui = game:GetService("CoreGui")
+        local cgDescendants = coreGui:GetDescendants()
+        processInBatches(cgDescendants, function(o)
+            if o:IsA("LocalScript") or o:IsA("Script") then
+                local code = safeDecompile(o)
+                local st, hits = getSuspicionLevel(code)
+                local colorLabel
+                if st=="Unsuspicious" then
+                    colorLabel=("CoreGui Script: %s [<font color='rgb(180,180,180)'>%s</font>]"):format(o:GetFullName(),st)
+                elseif st=="Might be Anticheat" then
+                    colorLabel=("CoreGui Script: %s [<font color='rgb(255,140,0)'>%s</font>]"):format(o:GetFullName(),st)
+                else
+                    colorLabel=("CoreGui Script: %s [<font color='rgb(255,50,50)'>%s</font>]"):format(o:GetFullName(),st)
+                    table.insert(suspiciousObjects, o)
+                end
+                local details="Path: "..o:GetFullName().."\nStatus: "..st.." ("..hits.." hits)\n\n".. code.. checkRequireCalls(code)
+                createResultItem(colorLabel,details)
+                findingsCount = findingsCount + 1
+            end
+        end, 100, function(i,t)
+            updateProgress("Analyzing CoreGui ("..i.."/"..t..")...")
+        end)
+    end
+
+    doCoreGuiScan()
+    if scanningCanceled then
+        updateProgress("Scan canceled (CoreGui).")
+        scanningInProgress=false
+        return
+    end
+
+    -- 5. ServerScriptService-Scan (neu)
+    local function doServerSideScan()
+        local success, serverService = pcall(function() return game:GetService("ServerScriptService") end)
+        if not success or not serverService then
+            createResultItem("ServerScriptService", "ServerScriptService not accessible.")
+            return
+        end
+        local ssDescendants = serverService:GetDescendants()
+        processInBatches(ssDescendants, function(o)
+            if o:IsA("Script") then
+                local code = safeDecompile(o)
+                local st, hits = getSuspicionLevel(code)
+                local colorLabel
+                if st=="Unsuspicious" then
+                    colorLabel=("Server Script: %s [<font color='rgb(180,180,180)'>%s</font>]"):format(o:GetFullName(),st)
+                elseif st=="Might be Anticheat" then
+                    colorLabel=("Server Script: %s [<font color='rgb(255,140,0)'>%s</font>]"):format(o:GetFullName(),st)
+                else
+                    colorLabel=("Server Script: %s [<font color='rgb(255,50,50)'>%s</font>]"):format(o:GetFullName(),st)
+                    table.insert(suspiciousObjects, o)
+                end
+                local details="Path: "..o:GetFullName().."\nStatus: "..st.." ("..hits.." hits)\n\n".. code.. checkRequireCalls(code)
+                createResultItem(colorLabel,details)
+                findingsCount = findingsCount + 1
+            end
+        end, 100, function(i,t)
+            updateProgress("Analyzing Server Scripts ("..i.."/"..t..")...")
+        end)
+    end
+
+    doServerSideScan()
+    if scanningCanceled then
+        updateProgress("Scan canceled (Server Scripts).")
+        scanningInProgress=false
+        return
+    end
+
+    -- 6. Exploits
+    local function doEx()
+        if hookmetamethod then
+            createResultItem("Metamethod Hooks Found","hookmetamethod is available.\n".. exploitInfo())
+            findingsCount=findingsCount+1
+        else
+            createResultItem("Metamethod Hooks?","No hookmetamethod found.\n".. exploitInfo())
+            findingsCount=findingsCount+1
+        end
+        if debug and debug.getupvalues then
+            createResultItem("Debug Functions","debug.getupvalues => deeper hooking.\n".. exploitInfo())
+        else
+            createResultItem("Debug Functions","No or partial debug library.\n".. exploitInfo())
+        end
+        findingsCount=findingsCount+1
+    end
+
+    doEx()
+    if scanningCanceled then
+        updateProgress("Scan canceled (exploits).")
+        scanningInProgress=false
+        return
+    end
+
+    if findingsCount==0 then
+        createResultItem("Analysis complete","No suspicious paths found.")
+    end
+    updateProgress("Analysis complete. Found: ".. findingsCount)
+    showCustomNotification("Analysis","Scan complete. Found ".. findingsCount.." items.",3)
+    scanningInProgress=false
+end
+
+local function multiScan()
+    if scanningInProgress then
+        showCustomNotification("Scan","Already scanning!",2)
+        return
+    end
+    scanningInProgress=true
+    scanningCanceled=false
+    findingsCount=0
+
+    for _,child in ipairs(Listener:GetChildren()) do
+        if child.Name=="ResultItem" then
+            child:Destroy()
+        end
+    end
+
+    updateProgress("Multi-Scan in progress...")
+    showCustomNotification("Multi-Scan","Starting parallel scans...",2)
+
+    local coScripts=coroutine.create(function()
+        local desc=game:GetDescendants()
+        processInBatches(desc,function(o)
+            if o:IsA("LocalScript") or o:IsA("ModuleScript") or o:IsA("Script") then
+                local code=safeDecompile(o)
+                local st,hits=getSuspicionLevel(code)
+                local label
+                if st=="Unsuspicious" then
+                    label=("Script: %s [<font color='rgb(180,180,180)'>%s</font>]"):format(o:GetFullName(),st)
+                elseif st=="Might be Anticheat" then
+                    label=("Script: %s [<font color='rgb(255,140,0)'>%s</font>]"):format(o:GetFullName(),st)
+                else
+                    label=("Script: %s [<font color='rgb(255,50,50)'>%s</font>]"):format(o:GetFullName(),st)
+                    table.insert(suspiciousObjects, o)
+                end
+                local det="Path: "..o:GetFullName().."\nStatus: "..st.." ("..hits.." hits)\n\n"..code.. checkRequireCalls(code)
+                createResultItem(label,det)
+                findingsCount=findingsCount+1
+            end
+        end,100,function(i,t)
+            updateProgress("Analyzing scripts ("..i.."/"..t..")...")
+        end)
+    end)
+
+    local coGC=coroutine.create(function()
+        if not getgc then
+            createResultItem("getgc() missing","No getgc() => cannot scan GC.")
+            return
+        end
+        local gl=getgc(true)
+        processInBatches(gl,function(f)
+            if type(f)=="function" and islclosure and islclosure(f) then
+                local code=safeDecompile(f)
+                local st,hits=getSuspicionLevel(code)
+                local line
+                if st=="Unsuspicious" then
+                    line="Function (getgc) [<font color='rgb(180,180,180)'>Unsuspicious</font>]"
+                elseif st=="Might be Anticheat" then
+                    line="Function (getgc) [<font color='rgb(255,140,0)'>Might be Anticheat</font>]"
+                else
+                    line="Function (getgc) [<font color='rgb(255,50,50)'>Could be Anticheat</font>]"
+                end
+                local det="--- Decompiled Function ---\n".. code.. checkRequireCalls(code)
+                local ups=tryGetUpvalues(f)
+                if #ups>0 then
+                    det=det.. "\n\nUpvalues:\n".. table.concat(ups,"\n")
+                end
+                createResultItem(line,det)
+                findingsCount=findingsCount+1
+            end
+        end,100,function(i,t)
+            updateProgress("Analyzing GC ("..i.."/"..t..")...")
+        end)
+    end)
+
+    local coRemotes=coroutine.create(function()
+        local dList=game:GetDescendants()
+        processInBatches(dList,function(o)
+            if o:IsA("RemoteEvent") or o:IsA("RemoteFunction") or o:IsA("BindableEvent") or o:IsA("BindableFunction") then
+                local ln=o.Name:lower()
+                local suspicious=false
+                for _,k in ipairs(suspiciousKeywords) do
+                    if ln:find(k) then
+                        suspicious=true
+                        break
+                    end
+                end
+                local st=suspicious and "Could be Anticheat" or "Unsuspicious"
+                local line
+                if st=="Unsuspicious" then
+                    line=("Remote: %s [<font color='rgb(180,180,180)'>%s</font>]"):format(o:GetFullName(),st)
+                else
+                    line=("Remote: %s [<font color='rgb(255,50,50)'>%s</font>]"):format(o:GetFullName(),st)
+                end
+                local info=remoteExtraInfo(o).. "\nStatus: "..st
+                createResultItem(line,info)
+                findingsCount=findingsCount+1
+            end
+        end,100,function(i,t)
+            updateProgress("Analyzing remotes ("..i.."/"..t..")...")
+        end)
+    end)
+
+    local coExploits=coroutine.create(function()
+        if hookmetamethod then
+            createResultItem("Metamethod Hooks Found","hookmetamethod is available.\n".. exploitInfo())
+            findingsCount=findingsCount+1
+        else
+            createResultItem("Metamethod Hooks?","No hookmetamethod found.\n".. exploitInfo())
+            findingsCount=findingsCount+1
+        end
+        if debug and debug.getupvalues then
+            createResultItem("Debug Functions","debug.getupvalues => deeper hooking.\n".. exploitInfo())
+        else
+            createResultItem("Debug Functions","No or partial debug library.\n".. exploitInfo())
+        end
+        findingsCount=findingsCount+1
+    end)
+
+    coroutine.resume(coScripts)
+    coroutine.resume(coGC)
+    coroutine.resume(coRemotes)
+    coroutine.resume(coExploits)
+
+    while coroutine.status(coScripts)~="dead"
+       or coroutine.status(coGC)~="dead"
+       or coroutine.status(coRemotes)~="dead"
+       or coroutine.status(coExploits)~="dead" do
+        if scanningCanceled then
+            updateProgress("Multi-Scan canceled.")
+            break
+        end
+        RunService.Heartbeat:Wait()
+    end
+
+    if not scanningCanceled then
+        if findingsCount==0 then
+            createResultItem("Analysis complete","No suspicious paths found.")
+        end
+        updateProgress("Multi-Scan complete. Found: "..findingsCount)
+        showCustomNotification("Multi-Scan","Finished. Found ".. findingsCount.." items.",3)
+    end
+    scanningInProgress=false
+end
+
+--------------------------------------------------------------------------------
+-- 12) BUTTON-EVENTS
+--------------------------------------------------------------------------------
+
+local function singleScanWrapper()
+    if not scanningInProgress then
+        singleScan()
+    else
+        showCustomNotification("Info","Already scanning.",2)
+    end
+end
+
+local function multiScanWrapper()
+    if not scanningInProgress then
+        multiScan()
+    else
+        showCustomNotification("Info","Already scanning.",2)
+    end
+end
+
+Uninject.MouseButton1Click:Connect(function()
+    if scanningInProgress then
+        scanningCanceled=true
+        updateProgress("Scan canceled by user.")
+        showCustomNotification("Scan","Cancelled by user.",2)
+    else
+        showCustomNotification("Info","No scan in progress.",2)
+    end
+end)
+
+StartBtn.MouseButton1Click:Connect(singleScanWrapper)
+MultiBtn.MouseButton1Click:Connect(multiScanWrapper)
+
+--------------------------------------------------------------------------------
+-- 13) BEI START (SHOW GUI + ANTI-AFK)
+--------------------------------------------------------------------------------
+
+local function showMainGUI()
+    if UI_OPEN then return end
+    UI_OPEN=true
+    Container.Size=UDim2.new(0,0,0,0)
+    Container.Position=UDim2.new(0.5,0,0.5,0)
+    Container.BackgroundTransparency=1
+    TweenService:Create(Container,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+        Size=MAIN_SIZE
+    }):Play()
+end
+
+showMainGUI()
+
+Players.LocalPlayer.Idled:Connect(function()
+    local vu=game:GetService("VirtualUser")
+    vu:CaptureController()
+    vu:ClickButton2(Vector2.new(0,0))
+    showCustomNotification("Anti-AFK","Anti-AFK active!",2)
+end)
