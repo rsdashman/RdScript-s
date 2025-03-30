@@ -1,0 +1,87 @@
+--[[ 
+    WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk! 
+]]
+local player = game.Players.LocalPlayer
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Create draggable frame (base)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 80)
+frame.Position = UDim2.new(0.4, 0, 0.1, 0)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+-- Add rounded corners to frame
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 10) -- Adjust the value to make it more or less rounded
+frameCorner.Parent = frame
+
+-- Create text input (textbox for player name)
+local nameBox = Instance.new("TextBox")
+nameBox.Size = UDim2.new(0.9, 0, 0.4, 0)
+nameBox.Position = UDim2.new(0.05, 0, 0.1, 0)
+nameBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+nameBox.Text = "Enter player name"
+nameBox.TextScaled = true
+nameBox.Parent = frame
+
+-- Add rounded corners to nameBox
+local nameBoxCorner = Instance.new("UICorner")
+nameBoxCorner.CornerRadius = UDim.new(0, 10)
+nameBoxCorner.Parent = nameBox
+
+-- Create "TP to Player" button
+local tpButton = Instance.new("TextButton")
+tpButton.Size = UDim2.new(0.9, 0, 0.3, 0)
+tpButton.Position = UDim2.new(0.05, 0, 0.6, 0)
+tpButton.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+tpButton.Text = "TP to Player"
+tpButton.TextScaled = true
+tpButton.Parent = frame
+
+-- Add rounded corners to tpButton
+local tpButtonCorner = Instance.new("UICorner")
+tpButtonCorner.CornerRadius = UDim.new(0, 10)
+tpButtonCorner.Parent = tpButton
+
+-- Function to find player by partial username or display name
+local function findPlayerByName(partialName)
+    local players = game.Players:GetPlayers()
+    for _, target in pairs(players) do
+        if target ~= player then
+            local username = string.lower(target.Name)
+            local displayName = string.lower(target.DisplayName)
+            local searchQuery = string.lower(partialName)
+            if string.find(username, searchQuery) or string.find(displayName, searchQuery) then
+                return target
+            end
+        end
+    end
+    return nil
+end
+
+-- Function to teleport to player
+local function teleportToPlayer()
+    local targetName = nameBox.Text
+    if targetName and targetName ~= "" then
+        local targetPlayer = findPlayerByName(targetName)
+        if targetPlayer and targetPlayer.Character then
+            local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if targetRoot then
+                local character = player.Character
+                if character then
+                    local rootPart = character:FindFirstChild("HumanoidRootPart")
+                    if rootPart then
+                        rootPart.CFrame = targetRoot.CFrame + Vector3.new(0, 3, 0)  -- Teleport slightly above
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Connect button click to teleport function
+tpButton.MouseButton1Click:Connect(teleportToPlayer)
