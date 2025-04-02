@@ -1,0 +1,38 @@
+local emptyFunction = {function()end}
+local StarterGui = game:GetService("StarterGui")
+local Players = game:GetService("Players")
+
+StarterGui:SetCore("SendNotification", {
+    Title = "animation?",
+    Text = "idk",
+    Duration = 3
+})
+
+local function decodeString(encodedString)
+    return string.char(encodedString:byte(1, #encodedString))
+end
+
+local function getBytes(stringToConvert)
+    return string.byte(stringToConvert, 1, #stringToConvert)
+end
+
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character
+local humanoid = character:FindFirstChild(decodeString("\72\117\109\97\110\111\105\100"))
+
+local function changeHumanoidState()
+    while wait() do
+        pcall(function()
+            humanoid:ChangeState(decodeString("\70\97\108\108\105\110\103\68\111\119\110"))
+            wait(0.15)
+            humanoid:ChangeState(decodeString("\71\101\116\116\105\110\103\85\112"))
+            humanoid:ChangeState(decodeString("\82\117\110\110\105\110\103\78\111\80\104\121\115\105\99\115"))
+        end)
+    end
+end
+
+spawn(changeHumanoidState)
+
+local garbage = [[
+    Encrypted using hardcore obfuscation
+    ]] .. string.rep("\32", 2048)
