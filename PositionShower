@@ -1,0 +1,44 @@
+local screenGui = Instance.new("ScreenGui")
+local frame = Instance.new("Frame")
+local textBox = Instance.new("TextBox")
+local copyButton = Instance.new("TextButton")
+
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+frame.Parent = screenGui
+frame.Size = UDim2.new(0, 200, 0, 100)
+frame.Position = UDim2.new(0.5, -100, 0.5, -50)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.Active = true
+frame.Draggable = true
+
+textBox.Parent = frame
+textBox.Size = UDim2.new(0, 180, 0, 40)
+textBox.Position = UDim2.new(0, 10, 0, 10)
+textBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+textBox.Text = ""
+textBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+textBox.ClearTextOnFocus = false
+
+copyButton.Parent = frame
+copyButton.Size = UDim2.new(0, 180, 0, 30)
+copyButton.Position = UDim2.new(0, 10, 0, 60)
+copyButton.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+copyButton.Text = "Copy"
+copyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local player = game.Players.LocalPlayer
+game:GetService("RunService").RenderStepped:Connect(function()
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local position = character.HumanoidRootPart.Position
+        textBox.Text = string.format("%.2f, %.2f, %.2f", position.X, position.Y, position.Z)
+    else
+        textBox.Text = ""
+    end
+end)
+
+copyButton.MouseButton1Click:Connect(function()
+    local position = textBox.Text
+    setclipboard(position)
+end)
