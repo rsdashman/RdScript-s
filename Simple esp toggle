@@ -1,0 +1,124 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = game:GetService("Workspace").CurrentCamera
+local UIS = game:GetService("UserInputService")
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = LocalPlayer.PlayerGui
+
+local ESP_ToggleButton = Instance.new("TextButton")
+ESP_ToggleButton.Size = UDim2.new(0, 100, 0, 50)
+ESP_ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+ESP_ToggleButton.Text = "ESP: OFF"
+ESP_ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 255)
+ESP_ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ESP_ToggleButton.Parent = ScreenGui
+
+local espEnabled = false
+local espBoxes = {}
+
+function createESP(player)
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+
+    local Box = Instance.new("BillboardGui")
+    Box.Name = "ESPBox"
+    Box.Adornee = player.Character:WaitForChild("HumanoidRootPart")
+    Box.Size = UDim2.new(4, 0, 5.5, 0)
+    Box.AlwaysOnTop = true
+
+    local Frame = Instance.new("Frame", Box)
+    Frame.Size = UDim2.new(1, 0, 1, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(173, 216, 230)
+    Frame.BackgroundTransparency = 0.5
+    Frame.BorderSizePixel = 3
+    Frame.BorderColor3 = Color3.fromRGB(0, 0, 255)
+
+    Box.Parent = player.Character
+    espBoxes[player] = Box
+end
+
+function removeESP(player)
+    if espBoxes[player] then
+        espBoxes[player]:Destroy()
+        espBoxes[player] = nil
+    end
+end
+
+function toggleESP()
+    espEnabled = not espEnabled
+    if espEnabled then
+        ESP_ToggleButton.Text = "ESP: ON"
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                createESP(player)
+            end
+        end
+    else
+        ESP_ToggleButton.Text = "ESP: OFF"
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                removeESP(player)
+            end
+        end
+    end
+end
+
+ESP_ToggleButton.MouseButton1Click:Connect(function()
+    toggleESP()
+end)
+
+local dragging, dragStart, startPos
+local function startDragging(input, button)
+    dragging = true
+    dragStart = input.Position
+    startPos = button.Position
+    input.Consumed = true
+end
+
+local function updateDragging(input, button)
+    if dragging then
+        local delta = input.Position - dragStart
+        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end
+
+local function stopDragging(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end
+
+ESP_ToggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        startDragging(input, ESP_ToggleButton)
+    end
+end)
+
+ESP_ToggleButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        updateDragging(input, ESP_ToggleButton)
+    end
+end)
+
+ESP_ToggleButton.InputEnded:Connect(stopDragging)
+
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and espEnabled then
+        createESP(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        wait(1)
+        if espEnabled then
+            createESP(player)
+        end
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if espEnabled then
+        removeESP(player)
+    end
+end)
