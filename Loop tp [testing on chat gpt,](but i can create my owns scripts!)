@@ -1,0 +1,112 @@
+local player = game.Players.LocalPlayer
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player.PlayerGui
+screenGui.Name = "FollowPlayerGui"
+screenGui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame")
+frame.Parent = screenGui
+frame.Size = UDim2.new(0, 300, 0, 150)
+frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BackgroundTransparency = 0.5
+frame.BorderSizePixel = 2
+frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+
+local textBox = Instance.new("TextBox")
+textBox.Parent = frame
+textBox.Size = UDim2.new(0, 250, 0, 40)
+textBox.Position = UDim2.new(0.5, -125, 0.5, -35)
+textBox.PlaceholderText = "player name/displayname here!"
+textBox.Text = ""
+textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+textBox.BackgroundTransparency = 0.6
+textBox.BorderSizePixel = 1
+textBox.BorderColor3 = Color3.fromRGB(255, 255, 255)
+textBox.TextSize = 18
+textBox.ClearTextOnFocus = true
+
+local followButton = Instance.new("TextButton")
+followButton.Parent = frame
+followButton.Size = UDim2.new(0, 250, 0, 30)
+followButton.Position = UDim2.new(0.5, -125, 0.5, 35)
+followButton.Text = "LoopTP"
+followButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+followButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+followButton.BackgroundTransparency = 0.3
+followButton.BorderSizePixel = 1
+followButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+
+local isFollowing = false
+local targetPlayer
+
+local function startLoopTeleport(playerName)
+    for _, p in ipairs(game.Players:GetPlayers()) do
+        if p.DisplayName:lower() == playerName:lower() or p.Name:lower() == playerName:lower() then
+            targetPlayer = p
+            break
+        end
+    end
+
+    if targetPlayer then
+        local character = targetPlayer.Character or targetPlayer.CharacterAdded:Wait()
+        local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso") or character:FindFirstChild("HumanoidRootPart")
+        
+        if torso then
+            while isFollowing and targetPlayer do
+                if torso and player.Character then
+                    player.Character:MoveTo(torso.Position)
+                end
+                wait(0)
+            end
+        else
+            warn("?")
+        end
+    else
+        warn("?")
+    end
+end
+
+followButton.MouseButton1Click:Connect(function()
+    local playerName = textBox.Text
+    if playerName and playerName ~= "" then
+        if isFollowing then
+            isFollowing = false
+            followButton.Text = "Follow>OFF"
+        else
+            isFollowing = true
+            followButton.Text = "Follow:On"
+            startLoopTeleport(playerName)
+        end
+    end
+end)
+
+local dragging = false
+local dragInput, dragStart, startPos
+
+local function updateDrag(input)
+    local delta = input.Position - dragStart
+    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if dragging then
+        updateDrag(input)
+    end
+end)
