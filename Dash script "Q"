@@ -1,47 +1,52 @@
--- Obfuscated by ChatGPT – estilo IIIII (RdScripts original)
+--made by RdScripts
 
-local IlIlI = game["\71\101\116\83\101\114\118\105\99\101"]("\85\115\101\114\73\110\112\117\116\83\101\114\118\105\99\101")
-local lIIll = game["\71\101\116\83\101\114\118\105\99\101"]("\80\108\97\121\101\114\115")
-local lIlII = game["\71\101\116\83\101\114\118\105\99\101"]("\82\117\110\83\101\114\118\105\99\101")
-local IIIll = lIIll["\76\111\99\97\108\80\108\97\121\101\114"]
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
-local iIlIl = false
-local IlIIl = 0.3
-local lIlll = 100
-local IIlII = 0.2
-local lIIII = nil
+local player = Players.LocalPlayer
 
-local function llIlI(IlIl1)
-    lIIII = IlIl1["\87\97\105\116\70\111\114\67\104\105\108\100"]("\72\117\109\97\110\111\105\100\82\111\111\116\80\97\114\116")
+local dashing = false
+local dashCooldown = 0.3
+local dashForce = 100
+local dashDuration = 0.2
+local humanoidRootPart
+
+local function setupCharacter(char)
+	humanoidRootPart = char:WaitForChild("HumanoidRootPart")
 end
 
-IIIll["\67\104\97\114\97\99\116\101\114\65\100\100\101\100"]:Connect(llIlI)
-if IIIll["\67\104\97\114\97\99\116\101\114"] then
-    llIlI(IIIll["\67\104\97\114\97\99\116\101\114"])
+player.CharacterAdded:Connect(setupCharacter)
+
+if player.Character then
+	setupCharacter(player.Character)
 end
 
-local function IlIll()
-    if iIlIl or not lIIII then return end
-    iIlIl = true
-    local lllII = lIIII["\67\70\114\97\109\101"]["\76\111\111\107\86\101\99\116\111\114"]
-    local lIlIl
-    local IlIlI = tick()
+function dash()
+	if dashing or not humanoidRootPart then return end
+	dashing = true
 
-    lIlIl = lIlII["\82\101\110\100\101\114\83\116\101\112\112\101\100"]:Connect(function()
-        if tick() - IlIlI < IIlII then
-            lIIII["\86\101\108\111\99\105\116\121"] = lllII * lIlll
-        else
-            lIlIl:Disconnect()
-        end
-    end)
+	local dashDirection = humanoidRootPart.CFrame.LookVector
 
-    task["\119\97\105\116"](IlIIl)
-    iIlIl = false
+	local connection
+	local startTime = tick()
+
+	connection = RunService.RenderStepped:Connect(function()
+		local elapsed = tick() - startTime
+		if elapsed < dashDuration then
+			humanoidRootPart.Velocity = dashDirection * dashForce
+		else
+			connection:Disconnect()
+		end
+	end)
+
+	task.wait(dashCooldown)
+	dashing = false
 end
 
-IlIlI["\73\110\112\117\116\66\101\103\97\110"]:Connect(function(IllII, IIlIl)
-    if IIlIl then return end
-    if IllII["\75\101\121\67\111\100\101"] == Enum["\75\101\121\67\111\100\101"]["\81"] then
-        IlIll()
-    end
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.Q then
+		dash()
+	end
 end)
