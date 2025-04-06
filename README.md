@@ -1,18 +1,12 @@
 # IMPORTANT
 
 # RdScript-s
-only randow scripts
-# im posting here some good scripts!
+only randow scripts [got it in scriptblox.com]
 
 + goodscripts
-+ OP
-+ not a rat
-+ Serverside scripts!
++ OP scripts!
   
-
-
-
 # most picked up from scriptblox.com and other sites
-
-
 ## Credits go to the official owners
+
+# Font: Scriptblox.com
