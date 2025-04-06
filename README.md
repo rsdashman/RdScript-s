@@ -7,6 +7,6 @@ only randow scripts [got it in scriptblox.com]
 + OP scripts!
   
 # most picked up from scriptblox.com and other sites
-## Credits go to the official owners
+## !!!Credits go to the official owners!!!
 
 # Font: Scriptblox.com
