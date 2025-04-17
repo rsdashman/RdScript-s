@@ -1,0 +1,82 @@
+
+-- ModernClock By Fian_gg
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+
+gui.Name = "ModernClock"
+gui.ResetOnSpawn = false
+gui.Parent = game.CoreGui
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 150, 0, 43.12)
+frame.BackgroundTransparency = 0.1
+frame.Position = UDim2.new(0.1, 0, 0, 0)
+frame.AnchorPoint = Vector2.new(0.5, 0)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = frame
+
+local label = Instance.new("TextLabel")
+label.Name = "ClockLabel"
+label.Size = UDim2.new(1, 0, 1, 0)
+label.BackgroundTransparency = 1
+label.Font = Enum.Font.GothamBold
+label.Text = "Loading..."
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.TextSize = 32
+label.Parent = frame
+
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+local function updateTime()
+    while true do
+        local time = os.date("*t")
+        label.Text = string.format("%02d:%02d:%02d", time.hour, time.min, time.sec)
+        wait(1)
+    end
+end
+
+spawn(updateTime)
