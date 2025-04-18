@@ -1,0 +1,50 @@
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+local dashing = false
+local dashCooldown = 0.3
+local dashForce = 100
+local dashDuration = 0.2
+local humanoidRootPart
+
+local function setupCharacter(char)
+	humanoidRootPart = char:WaitForChild("HumanoidRootPart")
+end
+
+player.CharacterAdded:Connect(setupCharacter)
+
+if player.Character then
+	setupCharacter(player.Character)
+end
+
+function dash()
+	if dashing or not humanoidRootPart then return end
+	dashing = true
+
+	local dashDirection = humanoidRootPart.CFrame.LookVector
+
+	local connection
+	local startTime = tick()
+
+	connection = RunService.RenderStepped:Connect(function()
+		local elapsed = tick() - startTime
+		if elapsed < dashDuration then
+			humanoidRootPart.Velocity = dashDirection * dashForce
+		else
+			connection:Disconnect()
+		end
+	end)
+
+	task.wait(dashCooldown)
+	dashing = false
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.Q then
+		dash()
+	end
+end)
