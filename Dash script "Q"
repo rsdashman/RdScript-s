@@ -1,4 +1,3 @@
---made by RdScripts
 
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
