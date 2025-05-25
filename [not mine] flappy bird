@@ -1,0 +1,578 @@
+-----------------------------------------------------------
+
+-- LOCALIZE BUILT-IN CONSTRUCTORS
+
+local _UDim2, _UDim = UDim2, UDim
+
+if type(_UDim2.new) ~= "function" then
+
+    error("Error: _UDim2.new is not a function. It seems UDim2 has been overwritten! Check your environment.")
+
+end
+
+if type(_UDim.new) ~= "function" then
+
+    error("Error: _UDim.new is not a function. It seems UDim has been overwritten! Check your environment.")
+
+end
+
+-----------------------------------------------------------
+
+-- GET LOCAL PLAYER AND PLAYERGUI
+
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- CREATE SCREEN GUI
+
+local screenGui = Instance.new("ScreenGui")
+
+screenGui.Name = "FlappyBirdGameUI"
+
+screenGui.Parent = playerGui
+
+-----------------------------------------------------------
+
+-- MAIN FRAME (MODERN, COMPACT UI)
+
+local mainFrame = Instance.new("Frame")
+
+mainFrame.Size = _UDim2.new(0, 350, 0, 500)          -- Compact window
+
+mainFrame.Position = _UDim2.new(0.5, -175, 0.5, -250) -- Centered
+
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) -- Dark gray
+
+mainFrame.BackgroundTransparency = 0.1
+
+mainFrame.Active = true
+
+mainFrame.Draggable = true
+
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+
+mainCorner.CornerRadius = _UDim.new(0, 10)
+
+mainCorner.Parent = mainFrame
+
+-----------------------------------------------------------
+
+-- TITLE LABEL (TOP LEFT)
+
+local titleLabel = Instance.new("TextLabel")
+
+titleLabel.Name = "TitleLabel"
+
+titleLabel.Parent = mainFrame
+
+titleLabel.Size = _UDim2.new(0, 150, 0, 50)
+
+titleLabel.Position = _UDim2.new(0, 10, 0, 0)
+
+titleLabel.BackgroundTransparency = 1
+
+titleLabel.Text = "Flappy Bird"
+
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+
+titleLabel.Font = Enum.Font.SourceSansBold
+
+pcall(function() titleLabel.TextScaled = true end)
+
+-----------------------------------------------------------
+
+-- LEVEL INDICATOR (TOP RIGHT)
+
+local levelLabel = Instance.new("TextLabel")
+
+levelLabel.Name = "LevelIndicator"
+
+levelLabel.Parent = mainFrame
+
+levelLabel.Size = _UDim2.new(0, 100, 0, 50)
+
+levelLabel.Position = _UDim2.new(1, -110, 0, 0)
+
+levelLabel.BackgroundTransparency = 1
+
+levelLabel.Text = "Level: 0"
+
+levelLabel.TextColor3 = Color3.new(1, 1, 1)
+
+levelLabel.Font = Enum.Font.SourceSansBold
+
+pcall(function() levelLabel.TextScaled = true end)
+
+-----------------------------------------------------------
+
+-- GAME AREA (PLAYING FIELD)
+
+local gameFrame = Instance.new("Frame")
+
+gameFrame.Name = "GameFrame"
+
+gameFrame.Parent = mainFrame
+
+gameFrame.Size = _UDim2.new(1, 0, 1, -50)  -- Fills below the top bar
+
+gameFrame.Position = _UDim2.new(0, 0, 0, 50)
+
+gameFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+
+gameFrame.BackgroundTransparency = 0.05
+
+gameFrame.Active = true
+
+gameFrame.ClipsDescendants = true
+
+local gameCorner = Instance.new("UICorner")
+
+gameCorner.CornerRadius = _UDim.new(0, 8)
+
+gameCorner.Parent = gameFrame
+
+-----------------------------------------------------------
+
+-- GAME CONSTANTS & STATE VARIABLES
+
+local GAME_WIDTH = 350
+
+local GAME_HEIGHT = 450   -- gameFrame height (500 - 50 top bar)
+
+local BIRD_SIZE = 15
+
+local BIRD_X = 60         -- Fixed horizontal position of the bird
+
+local GRAVITY = 800       -- Pixels/s²
+
+local JUMP_IMPULSE = -250
+
+local baseSpeed = 120
+
+local OBSTACLE_SPEED = baseSpeed  -- This gets increased every 10 levels
+
+local OBSTACLE_WIDTH = 30
+
+local GAP_HEIGHT = 100
+
+local SPAWN_INTERVAL = 2.0
+
+local running = true
+
+local birdY = GAME_HEIGHT / 2
+
+local birdVelocity = 0
+
+local obstacles = {}
+
+local timeSinceLastSpawn = 0
+
+local currentLevel = 0  -- Level counter
+
+-----------------------------------------------------------
+
+-- CREATE THE BIRD (YELLOW CIRCLE)
+
+local bird = Instance.new("Frame")
+
+bird.Name = "Bird"
+
+bird.Size = _UDim2.new(0, BIRD_SIZE, 0, BIRD_SIZE)
+
+bird.Position = _UDim2.new(0, BIRD_X, 0, birdY)
+
+bird.BackgroundColor3 = Color3.fromRGB(255, 230, 0)  -- Bright yellow
+
+bird.Parent = gameFrame
+
+local birdCorner = Instance.new("UICorner")
+
+birdCorner.CornerRadius = _UDim.new(1, 0)  -- Fully round
+
+birdCorner.Parent = bird
+
+-----------------------------------------------------------
+
+-- HELPER: COLLISION DETECTION FUNCTION
+
+local function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2)
+
+	return x1 < x2 + w2 and (x1 + w1) > x2 and y1 < y2 + h2 and (y1 + h1) > y2end
+end
+
+-----------------------------------------------------------
+
+-- FUNCTION: SPAWN OBSTACLES ("PIPES")
+
+local function spawnObstacle()
+
+	local minGapY = 30
+
+	local maxGapY = GAME_HEIGHT - GAP_HEIGHT - 30
+
+	local gapY = math.random(minGapY, maxGapY)
+
+	
+
+	-- Top pipe.
+
+	local topPipe = Instance.new("Frame")
+
+	topPipe.Size = _UDim2.new(0, OBSTACLE_WIDTH, 0, gapY)
+
+	topPipe.Position = _UDim2.new(0, GAME_WIDTH, 0, 0)
+
+	topPipe.BackgroundColor3 = Color3.fromRGB(50, 205, 50)  -- Lime green
+
+	topPipe.Parent = gameFrame
+
+	
+
+	local topPipeCorner = Instance.new("UICorner")
+
+	topPipeCorner.CornerRadius = _UDim.new(0, 5)
+
+	topPipeCorner.Parent = topPipe
+
+	-- Bottom pipe.
+
+	local bottomPipe = Instance.new("Frame")
+
+	bottomPipe.Size = _UDim2.new(0, OBSTACLE_WIDTH, 0, GAME_HEIGHT - (gapY + GAP_HEIGHT))
+
+	bottomPipe.Position = _UDim2.new(0, GAME_WIDTH, 0, gapY + GAP_HEIGHT)
+
+	bottomPipe.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
+
+	bottomPipe.Parent = gameFrame
+
+	
+
+	local bottomPipeCorner = Instance.new("UICorner")
+
+	bottomPipeCorner.CornerRadius = _UDim.new(0, 5)
+
+	bottomPipeCorner.Parent = bottomPipe
+
+	-- Save obstacle info with a flag so the level increases only once.
+
+	table.insert(obstacles, {
+
+		x = GAME_WIDTH, 
+
+		gapY = gapY, 
+
+		topFrame = topPipe, 
+
+		bottomFrame = bottomPipe, 
+
+		counted = false
+
+	})
+
+end
+
+-----------------------------------------------------------
+
+-- FUNCTION: WIN (Display trophy and win overlay)
+
+local function win()
+
+	running = false
+
+	
+
+	local winLabel = Instance.new("TextLabel")
+
+	winLabel.Name = "WinLabel"
+
+	winLabel.Size = _UDim2.new(1, 0, 1, 0)
+
+	winLabel.BackgroundTransparency = 0.5
+
+	winLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+
+	winLabel.Text = "You Win!\nCongratulations!\nTrophy Awarded!"
+
+	winLabel.TextColor3 = Color3.new(1, 1, 1)
+
+	winLabel.Font = Enum.Font.SourceSansBold
+
+	local success, err = pcall(function() winLabel.TextScaled = true end)
+
+	if not success then
+
+		winLabel.TextSize = 40
+
+	end
+
+	winLabel.Parent = gameFrame
+
+	
+
+	-- Display a trophy image using the asset from Roblox Creator Store.
+
+	local trophy = Instance.new("ImageLabel")
+
+	trophy.Name = "TrophyImage"
+
+	trophy.Size = _UDim2.new(0, 100, 0, 100)
+
+	trophy.Position = _UDim2.new(0.5, -50, 0.5, -50)
+
+	trophy.BackgroundTransparency = 1
+
+	trophy.Image = "rbxassetid://7311942346"  -- Trophy asset id from the Creator Store.
+
+	trophy.Parent = gameFrame
+
+end
+
+-----------------------------------------------------------
+
+-- FUNCTION: GAME OVER
+
+local function gameOver()
+
+	if not running then return end
+
+	running = false
+
+	
+
+	local gameOverLabel = Instance.new("TextLabel")
+
+	gameOverLabel.Name = "GameOverLabel"
+
+	gameOverLabel.Size = _UDim2.new(1, 0, 1, 0)
+
+	gameOverLabel.BackgroundTransparency = 0.5
+
+	gameOverLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+
+	gameOverLabel.Text = "Game Over\nTap to Restart"
+
+	gameOverLabel.TextColor3 = Color3.new(1, 1, 1)
+
+	gameOverLabel.Font = Enum.Font.SourceSansBold
+
+	local success, err = pcall(function() gameOverLabel.TextScaled = true end)
+
+	if not success then
+
+		gameOverLabel.TextSize = 40
+
+	end
+
+	gameOverLabel.Parent = gameFrame
+
+end
+
+-----------------------------------------------------------
+
+-- FUNCTION: RESET GAME
+
+local function resetGame()
+
+	local existingLabel = gameFrame:FindFirstChild("GameOverLabel")
+
+	if existingLabel then
+
+		existingLabel:Destroy()
+
+	end
+
+	local existingWin = gameFrame:FindFirstChild("WinLabel")
+
+	if existingWin then
+
+		existingWin:Destroy()
+
+	end
+
+	local existingTrophy = gameFrame:FindFirstChild("TrophyImage")
+
+	if existingTrophy then
+
+		existingTrophy:Destroy()
+
+	end
+
+	for i = #obstacles, 1, -1 do
+
+		if obstacles[i].topFrame then obstacles[i].topFrame:Destroy() end
+
+		if obstacles[i].bottomFrame then obstacles[i].bottomFrame:Destroy() end
+
+		table.remove(obstacles, i)
+
+	end
+
+	currentLevel = 0
+
+	levelLabel.Text = "Level: 0"
+
+	birdY = GAME_HEIGHT / 2
+
+	birdVelocity = 0
+
+	bird.Position = _UDim2.new(0, BIRD_X, 0, birdY)
+
+	running = true
+
+	timeSinceLastSpawn = 0
+
+	OBSTACLE_SPEED = baseSpeed  -- Reset obstacle speed
+
+end
+
+-----------------------------------------------------------
+
+-- HANDLE PLAYER INPUT: Tap to jump (or reset if game over/win)
+
+gameFrame.InputBegan:Connect(function(input)
+
+	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+		if running then
+
+			birdVelocity = JUMP_IMPULSE
+
+		else
+
+			resetGame()
+
+		end
+
+	end
+
+end)
+
+-----------------------------------------------------------
+
+-- MAIN GAME LOOP (runs every frame)
+
+local RunService = game:GetService("RunService")
+
+RunService.Heartbeat:Connect(function(dt)
+
+	if not running then return end
+
+	
+
+	-- Update bird physics (apply gravity).
+
+	birdVelocity = birdVelocity + GRAVITY * dt
+
+	birdY = birdY + birdVelocity * dt
+
+	bird.Position = _UDim2.new(0, BIRD_X, 0, birdY)
+
+	
+
+	-- If the bird is out of bounds, the game is over.
+
+	if birdY < 0 or (birdY + BIRD_SIZE) > GAME_HEIGHT then
+
+		gameOver()
+
+		return
+
+	end
+
+	
+
+	-- Process each obstacle.
+
+	for i = #obstacles, 1, -1 do
+
+		local obs = obstacles[i]
+
+		obs.x = obs.x - OBSTACLE_SPEED * dt
+
+		obs.topFrame.Position = _UDim2.new(0, obs.x, 0, 0)
+
+		obs.bottomFrame.Position = _UDim2.new(0, obs.x, 0, obs.gapY + GAP_HEIGHT)
+
+		
+
+		-- When an obstacle passes the bird (and hasn't been counted), increase level.
+
+		if (not obs.counted) and ((obs.x + OBSTACLE_WIDTH) < BIRD_X) then
+
+			currentLevel = currentLevel + 1
+
+			obs.counted = true
+
+			levelLabel.Text = "Level: " .. currentLevel
+
+			
+
+			-- Increase speed every 10 levels.
+
+			OBSTACLE_SPEED = baseSpeed + math.floor(currentLevel / 10) * 20
+
+			
+
+			-- Win condition: Level reaches 100.
+
+			if currentLevel >= 100 then
+
+				win()
+
+				return
+
+			end
+
+		end
+
+		
+
+		-- Check collisions with the pipes.
+
+		if checkCollision(BIRD_X, birdY, BIRD_SIZE, BIRD_SIZE, obs.x, 0, OBSTACLE_WIDTH, obs.gapY)
+
+		or checkCollision(BIRD_X, birdY, BIRD_SIZE, BIRD_SIZE, obs.x, obs.gapY + GAP_HEIGHT, OBSTACLE_WIDTH, GAME_HEIGHT - (obs.gapY + GAP_HEIGHT))
+
+		then
+
+			gameOver()
+
+			return
+
+		end
+
+		
+
+		-- Remove obstacles that leave the game area.
+
+		if obs.x + OBSTACLE_WIDTH < 0 then
+
+			obs.topFrame:Destroy()
+
+			obs.bottomFrame:Destroy()
+
+			table.remove(obstacles, i)
+
+		end
+
+	end
+
+	
+
+	timeSinceLastSpawn = timeSinceLastSpawn + dt
+
+	if timeSinceLastSpawn >= SPAWN_INTERVAL then
+
+		spawnObstacle()
+
+		timeSinceLastSpawn = 0
+
+	end
+
+end)
