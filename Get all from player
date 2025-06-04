@@ -1,0 +1,396 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RobloxConsole"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+
+local consoleFrame = Instance.new("Frame")
+consoleFrame.Name = "ConsoleFrame"
+consoleFrame.Size = UDim2.new(0, 800, 0, 500)
+consoleFrame.Position = UDim2.new(0.5, -400, 0.5, -250)
+consoleFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+consoleFrame.BorderSizePixel = 2
+consoleFrame.BorderColor3 = Color3.fromRGB(128, 128, 128)
+consoleFrame.Parent = screenGui
+consoleFrame.Visible = false
+
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(32, 32, 32)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = consoleFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -60, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Roblox Player Info Console"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.SourceSansLight
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -30, 0, 0)
+closeButton.BackgroundColor3 = Color3.fromRGB(196, 43, 28)
+closeButton.BorderSizePixel = 0
+closeButton.Text = "Ã—"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.Parent = titleBar
+
+local outputFrame = Instance.new("ScrollingFrame")
+outputFrame.Name = "OutputFrame"
+outputFrame.Size = UDim2.new(1, -20, 1, -80)
+outputFrame.Position = UDim2.new(0, 10, 0, 35)
+outputFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+outputFrame.BorderSizePixel = 1
+outputFrame.BorderColor3 = Color3.fromRGB(64, 64, 64)
+outputFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+outputFrame.ScrollBarThickness = 8
+outputFrame.Parent = consoleFrame
+
+local inputFrame = Instance.new("Frame")
+inputFrame.Name = "InputFrame"
+inputFrame.Size = UDim2.new(1, -20, 0, 35)
+inputFrame.Position = UDim2.new(0, 10, 1, -40)
+inputFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 32)
+inputFrame.BorderSizePixel = 1
+inputFrame.BorderColor3 = Color3.fromRGB(64, 64, 64)
+inputFrame.Parent = consoleFrame
+
+local promptLabel = Instance.new("TextLabel")
+promptLabel.Name = "PromptLabel"
+promptLabel.Size = UDim2.new(0, 30, 1, 0)
+promptLabel.Position = UDim2.new(0, 5, 0, 0)
+promptLabel.BackgroundTransparency = 1
+promptLabel.Text = ">"
+promptLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+promptLabel.TextScaled = true
+promptLabel.Font = Enum.Font.SourceSans
+promptLabel.TextXAlignment = Enum.TextXAlignment.Left
+promptLabel.Parent = inputFrame
+
+local inputBox = Instance.new("TextBox")
+inputBox.Name = "InputBox"
+inputBox.Size = UDim2.new(1, -35, 1, -4)
+inputBox.Position = UDim2.new(0, 35, 0, 2)
+inputBox.BackgroundTransparency = 1
+inputBox.Text = ""
+inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+inputBox.TextScaled = true
+inputBox.Font = Enum.Font.SourceSans
+inputBox.TextXAlignment = Enum.TextXAlignment.Left
+inputBox.PlaceholderText = "Enter command..."
+inputBox.PlaceholderColor3 = Color3.fromRGB(128, 128, 128)
+inputBox.ClearTextOnFocus = false
+inputBox.Parent = inputFrame
+
+local RobloxConsole = {}
+RobloxConsole.__index = RobloxConsole
+
+function RobloxConsole.new()
+    local self = setmetatable({}, RobloxConsole)
+    self.outputLines = {}
+    self.commandHistory = {}
+    self.historyIndex = 0
+    self.isVisible = false
+
+    self.commands = {
+        ["help"] = "Show all available commands",
+        ["info"] = "Get player information (info [username/userid])",
+        ["list"] = "List all players in the server",
+        ["age"] = "Get account age (age [username/userid])",
+        ["avatar"] = "Get avatar information (avatar [username/userid])",
+        ["clear"] = "Clear the console",
+        ["exit"] = "Hide the console",
+        ["ping"] = "Show ping and FPS",
+        ["tp"] = "Teleport to a player (tp [username])"
+    }
+
+    return self
+end
+
+function RobloxConsole:addOutput(text, color)
+    color = color or Color3.fromRGB(255, 255, 255)
+
+    local outputLabel = Instance.new("TextLabel")
+    outputLabel.Name = "OutputLine"
+    outputLabel.Size = UDim2.new(1, -10, 0, 20)
+    outputLabel.Position = UDim2.new(0, 5, 0, #self.outputLines * 20)
+    outputLabel.BackgroundTransparency = 1
+    outputLabel.Text = text
+    outputLabel.TextColor3 = color
+    outputLabel.TextScaled = true
+    outputLabel.Font = Enum.Font.SourceSans
+    outputLabel.TextXAlignment = Enum.TextXAlignment.Left
+    outputLabel.TextYAlignment = Enum.TextYAlignment.Top
+    outputLabel.Parent = outputFrame
+
+    table.insert(self.outputLines, outputLabel)
+
+    outputFrame.CanvasSize = UDim2.new(0, 0, 0, #self.outputLines * 20)
+    outputFrame.CanvasPosition = Vector2.new(0, outputFrame.CanvasSize.Y.Offset)
+
+    if #self.outputLines > 100 then
+        self.outputLines[1]:Destroy()
+        table.remove(self.outputLines, 1)
+
+        for i, line in ipairs(self.outputLines) do
+            line.Position = UDim2.new(0, 5, 0, (i - 1) * 20)
+        end
+    end
+end
+
+function RobloxConsole:printWelcome()
+    self:addOutput("=" .. string.rep("=", 50), Color3.fromRGB(0, 255, 0))
+    self:addOutput("ROBLOX PLAYER INFO CONSOLE", Color3.fromRGB(0, 255, 255))
+    self:addOutput("=" .. string.rep("=", 50), Color3.fromRGB(0, 255, 0))
+    self:addOutput("Type 'help' for a list of commands", Color3.fromRGB(255, 255, 0))
+    self:addOutput("", Color3.fromRGB(255, 255, 255))
+end
+
+function RobloxConsole:printHelp()
+    self:addOutput("AVAILABLE COMMANDS:", Color3.fromRGB(0, 255, 255))
+    self:addOutput(string.rep("-", 40), Color3.fromRGB(128, 128, 128))
+    for command, description in pairs(self.commands) do
+        self:addOutput(string.format("â€¢ %-10s - %s", command, description), Color3.fromRGB(255, 255, 255))
+    end
+    self:addOutput("", Color3.fromRGB(255, 255, 255))
+end
+
+function RobloxConsole:getUserInfo(input)
+    local targetPlayer = Players[input] or Players:FindFirstChild(input)
+
+    if not targetPlayer then
+        self:addOutput("Player not found: " .. input, Color3.fromRGB(255, 0, 0))
+        return
+    end
+
+    self:addOutput("PLAYER INFO:", Color3.fromRGB(0, 255, 255))
+    self:addOutput(string.rep("-", 30), Color3.fromRGB(128, 128, 128))
+    self:addOutput("â€¢ Name: " .. targetPlayer.Name, Color3.fromRGB(255, 255, 255))
+    self:addOutput("â€¢ Display Name: " .. targetPlayer.DisplayName, Color3.fromRGB(255, 255, 255))
+    self:addOutput("â€¢ ID: " .. targetPlayer.UserId, Color3.fromRGB(255, 255, 255))
+    self:addOutput("â€¢ Account Age: " .. targetPlayer.AccountAge .. " days", Color3.fromRGB(255, 255, 255))
+    self:addOutput("â€¢ Status: Online", Color3.fromRGB(0, 255, 0))
+    self:addOutput("â€¢ Profile: roblox.com/users/" .. targetPlayer.UserId, Color3.fromRGB(0, 255, 255))
+
+    if targetPlayer.Character then
+        local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            self:addOutput("â€¢ Health: " .. math.floor(humanoid.Health) .. "/" .. humanoid.MaxHealth, Color3.fromRGB(255, 255, 255))
+            self:addOutput("â€¢ Walk Speed: " .. humanoid.WalkSpeed, Color3.fromRGB(255, 255, 255))
+        end
+    end
+    self:addOutput("", Color3.fromRGB(255, 255, 255))
+end
+
+function RobloxConsole:listPlayers()
+    local playerList = Players:GetPlayers()
+
+    self:addOutput("PLAYERS IN SERVER (" .. #playerList .. "):", Color3.fromRGB(0, 255, 255))
+    self:addOutput(string.rep("-", 40), Color3.fromRGB(128, 128, 128))
+
+    for i, p in ipairs(playerList) do
+        local status = (p.Character and "Online") or "Offline"
+        self:addOutput(string.format("â€¢ %s %s (ID: %d) - %d days", status, p.Name, p.UserId, p.AccountAge), Color3.fromRGB(255, 255, 255))
+    end
+    self:addOutput("", Color3.fromRGB(255, 255, 255))
+end
+
+function RobloxConsole:showPing()
+    local ping = player:GetNetworkPing() * 1000
+    local fps = math.floor(1 / RunService.Heartbeat:Wait())
+
+    self:addOutput("CONNECTION STATS:", Color3.fromRGB(0, 255, 255))
+    self:addOutput("â€¢ Ping: " .. math.floor(ping) .. " ms", Color3.fromRGB(255, 255, 255))
+    self:addOutput("â€¢ FPS: " .. fps, Color3.fromRGB(255, 255, 255))
+    self:addOutput("", Color3.fromRGB(255, 255, 255))
+end
+
+function RobloxConsole:teleportToPlayer(username)
+    local targetPlayer = Players[username] or Players:FindFirstChild(username)
+
+    if not targetPlayer then
+        self:addOutput("Player not found: " .. username, Color3.fromRGB(255, 0, 0))
+        return
+    end
+
+    if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        self:addOutput("Cannot teleport to " .. username, Color3.fromRGB(255, 0, 0))
+        return
+    end
+
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        player.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+        self:addOutput("Teleported to " .. targetPlayer.Name, Color3.fromRGB(0, 255, 0))
+    else
+        self:addOutput("Teleport error", Color3.fromRGB(255, 0, 0))
+    end
+end
+
+function RobloxConsole:clearConsole()
+    for _, line in ipairs(self.outputLines) do
+        line:Destroy()
+    end
+    self.outputLines = {}
+    outputFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    self:printWelcome()
+end
+
+function RobloxConsole:processCommand(input)
+    input = input:gsub("^%s+", ""):gsub("%s+$", "")
+
+    if input == "" then
+        return
+    end
+
+    table.insert(self.commandHistory, input)
+    if #self.commandHistory > 20 then
+        table.remove(self.commandHistory, 1)
+    end
+    self.historyIndex = #self.commandHistory + 1
+
+    self:addOutput("> " .. input, Color3.fromRGB(0, 255, 0))
+
+    local parts = {}
+    for word in input:gmatch("%S+") do
+        table.insert(parts, word)
+    end
+
+    if #parts == 0 then
+        return
+    end
+
+    local command = parts[1]:lower()
+    local args = {}
+    for i = 2, #parts do
+        table.insert(args, parts[i])
+    end
+
+    if command == "help" then
+        self:printHelp()
+    elseif command == "info" then
+        if #args > 0 then
+            self:getUserInfo(args[1])
+        else
+            self:addOutput("Usage: info [username]", Color3.fromRGB(255, 0, 0))
+        end
+    elseif command == "list" then
+        self:listPlayers()
+    elseif command == "age" then
+        if #args > 0 then
+            self:getUserInfo(args[1])
+        else
+            self:addOutput("Usage: age [username]", Color3.fromRGB(255, 0, 0))
+        end
+    elseif command == "clear" then
+        self:clearConsole()
+    elseif command == "exit" then
+        self:toggle()
+    elseif command == "ping" then
+        self:showPing()
+    elseif command == "tp" then
+        if #args > 0 then
+            self:teleportToPlayer(args[1])
+        else
+            self:addOutput("Usage: tp [username]", Color3.fromRGB(255, 0, 0))
+        end
+    else
+        self:addOutput("Unknown command: " .. command, Color3.fromRGB(255, 0, 0))
+        self:addOutput("Type 'help' for a list of commands", Color3.fromRGB(255, 255, 0))
+    end
+end
+
+function RobloxConsole:toggle()
+    self.isVisible = not self.isVisible
+    consoleFrame.Visible = self.isVisible
+
+    if self.isVisible then
+        inputBox:CaptureFocus()
+        if #self.outputLines == 0 then
+            self:printWelcome()
+        end
+    end
+end
+
+local console = RobloxConsole.new()
+
+closeButton.MouseButton1Click:Connect(function()
+    console:toggle()
+end)
+
+inputBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local command = inputBox.Text
+        inputBox.Text = ""
+        console:processCommand(command)
+        inputBox:CaptureFocus()
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode.F1 then
+        console:toggle()
+    elseif input.KeyCode == Enum.KeyCode.Up and console.isVisible then
+        if console.historyIndex > 1 then
+            console.historyIndex = console.historyIndex - 1
+            inputBox.Text = console.commandHistory[console.historyIndex] or ""
+        end
+    elseif input.KeyCode == Enum.KeyCode.Down and console.isVisible then
+        if console.historyIndex < #console.commandHistory then
+            console.historyIndex = console.historyIndex + 1
+            inputBox.Text = console.commandHistory[console.historyIndex] or ""
+        else
+            console.historyIndex = #console.commandHistory + 1
+            inputBox.Text = ""
+        end
+    end
+end)
+
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = consoleFrame.Position
+    end
+end)
+
+titleBar.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        consoleFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+titleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+wait(2)
+console:toggle()
+console:addOutput("Press F1 to toggle menu", Color3.fromRGB(255, 255, 0))
